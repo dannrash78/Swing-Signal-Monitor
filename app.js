@@ -1,8 +1,10 @@
+const DEFAULT_BACKEND_URL = "https://swing-signal-backend.danniel-rashev.workers.dev";
+
 const DEFAULTS = {
   symbols: ["NVDA","AMD","MU","AVGO","TSLA","AAPL","AMZN","META","MSFT","GOOGL"],
   target: 10,
   levels: [5,8,10],
-  backend: localStorage.getItem("swingBackend") || ""
+  backend: localStorage.getItem("swingBackend") || DEFAULT_BACKEND_URL
 };
 
 let state = JSON.parse(localStorage.getItem("swingState") || "null") || {
@@ -30,8 +32,9 @@ $("addBtn").onclick = () => {
 };
 $("holding").onchange = e => $("entryPrice").disabled = !e.target.checked;
 
+$("cancelStock").onclick = () => $("stockDialog").close();
+
 $("stockForm").onsubmit = e => {
-  if (e.submitter?.value === "cancel") return;
   e.preventDefault();
   const s = $("symbol").value.trim().toUpperCase();
   if (!/^[A-Z.]{1,8}$/.test(s)) return alert("Въведи валиден ticker.");
