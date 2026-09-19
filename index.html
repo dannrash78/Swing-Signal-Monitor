@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Swing Signal Monitor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div>
+    <h1>📈 Swing Signal Monitor</h1>
+    <p>Исторически тествани правила за наблюдение на swing позиции</p>
+  </div>
+  <button id="refreshBtn">↻ Обнови</button>
+</header>
+
+<main>
+  <section class="settings">
+    <label>Backend URL
+      <input id="backendUrl" placeholder="https://your-worker.workers.dev">
+    </label>
+    <label>Цел за изход
+      <input id="targetPct" type="number" value="10" min="1" max="50" step="0.5"> %
+    </label>
+    <label>Траншове
+      <input id="levels" value="5,8,10" aria-label="Нива на спад">
+    </label>
+    <button id="saveSettings">Запази настройки</button>
+  </section>
+
+  <section>
+    <div class="toolbar">
+      <h2>Watchlist</h2>
+      <button id="addBtn">+ Добави акция</button>
+    </div>
+    <div id="cards" class="grid"></div>
+  </section>
+
+  <section class="legend">
+    <b>Сигнали:</b>
+    🟢 ENTRY ZONE = цената е достигнала зададено ниво на спад;
+    🟡 WATCH = близо до ниво;
+    🔵 EXIT ZONE = при зададена цел за вече отбелязана позиция;
+    ⚪ WAIT = няма сигнал.
+  </section>
+</main>
+
+<dialog id="stockDialog">
+  <form method="dialog" id="stockForm">
+    <h3>Добави акция</h3>
+    <input id="symbol" required maxlength="8" placeholder="NVDA">
+    <label class="check"><input id="holding" type="checkbox"> Имам отворена позиция</label>
+    <input id="entryPrice" type="number" step="0.01" placeholder="Входна цена" disabled>
+    <menu>
+      <button value="cancel">Отказ</button>
+      <button id="addStock" value="default">Добави</button>
+    </menu>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
