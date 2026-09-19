@@ -100,7 +100,50 @@ async function render(){
 
     data.results.forEach(x => cards.appendChild(card(x, target, levels)));
   }catch(e){
-    cards.innerHTML = '<div class="card error"><b>Backend error</b><p>' + escapeHtml(e.message) + '</p><p>Провери Backend URL и Cloudflare Worker.</p></div>';
+    await showBackendDiagnostic(cards, backend, e);
+  }
+}
+
+async function showBackendDiagnostic(cards, backend, scanError){
+  cards.innerHTML = '<div class="card loading">Проверявам състоянието на Backend-а…</div>';
+
+  const healthUrl = backend.replace(/\/$/,"") + "/api/health";
+
+  try {
+    const r = await fetch(healthUrl, {cache:"no-store"});
+    let data = null;
+    try { data = await r.json(); } catch {}
+
+    if (r.ok && data?.ok) {
+      cards.innerHTML =
+        '<div class="card error">' +
+          '<b>⚠️ Backend-ът работи, но сканирането не е успешно</b>' +
+          '<p><b>Health check:</b> OK</p>' +
+          '<p><b>Service:</b> ' + escapeHtml(data.service || "—") + '</p>' +
+          '<p><b>Backend version:</b> ' + escapeHtml(data.version || "—") + '</p>' +
+          '<p><b>Scan error:</b> ' + escapeHtml(scanError.message || "Неизвестна грешка") + '</p>' +
+          '<p>Проблемът вероятно е в API заявката или Alpha Vantage, а не в достъпа до Cloudflare Worker.</p>' +
+        '</div>';
+      return;
+    }
+
+    cards.innerHTML =
+      '<div class="card error">' +
+        '<b>❌ Backend health check не премина</b>' +
+        '<p><b>Health URL:</b> ' + escapeHtml(healthUrl) + '</p>' +
+        '<p><b>HTTP:</b> ' + escapeHtml(String(r.status)) + '</p>' +
+        '<p><b>Резултат:</b> ' + escapeHtml(data?.error || data?.message || "Няма четим отговор.") + '</p>' +
+        '<p><b>Първоначална грешка:</b> ' + escapeHtml(scanError.message || "Неизвестна грешка") + '</p>' +
+      '</div>';
+  } catch (healthError) {
+    cards.innerHTML =
+      '<div class="card error">' +
+        '<b>❌ Backend-ът не може да бъде достигнат</b>' +
+        '<p><b>Health URL:</b> ' + escapeHtml(healthUrl) + '</p>' +
+        '<p><b>Health check:</b> ' + escapeHtml(healthError.message || "Няма връзка.") + '</p>' +
+        '<p><b>Първоначална грешка:</b> ' + escapeHtml(scanError.message || "Неизвестна грешка") + '</p>' +
+        '<p>Провери Cloudflare Worker URL, deployment и Access настройките.</p>' +
+      '</div>';
   }
 }
 
