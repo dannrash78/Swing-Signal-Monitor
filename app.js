@@ -2,7 +2,7 @@ const DEFAULTS = {
   symbols: ["NVDA","AMD","MU","AVGO","TSLA","AAPL","AMZN","META","MSFT","GOOGL"],
   target: 10,
   levels: [5,8,10],
-  backend: localStorage.getItem("swingBackend") || ""
+  backend: localStorage.getItem("swingBackend") || "https://swing-signal-backend.danniel-rashev.workers.dev"
 };
 
 let state = JSON.parse(localStorage.getItem("swingState") || "null") || {
