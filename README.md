@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.1
+Version 1.2
 
 GitHub Pages frontend + Cloudflare Worker backend.
 
@@ -50,3 +50,10 @@ Do not put the Alpha Vantage key in frontend files or commit it to GitHub.
 ## Important
 
 The free Alpha Vantage plan has request limits. The cache reduces repeated requests but does not increase the provider's daily allowance.
+
+## Version 1.2
+
+- Current tool version is shown in the page header.
+- Default backend URL is prefilled with the configured Cloudflare Worker endpoint.
+- Settings fields are aligned consistently.
+- Exit target is displayed as `Цел за изход (%)`.
