@@ -11,7 +11,7 @@ let state = JSON.parse(localStorage.getItem("swingState") || "null") || {
 };
 
 const $ = id => document.getElementById(id);
-$("backendUrl").value = DEFAULTS.backend;
+$("backendUrl").value = DEFAULTS.backend || "https://swing-signal-backend.danniel-rashev.workers.dev";
 $("targetPct").value = DEFAULTS.target;
 $("levels").value = DEFAULTS.levels.join(",");
 
