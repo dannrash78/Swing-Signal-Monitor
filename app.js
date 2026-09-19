@@ -1,10 +1,8 @@
-const DEFAULT_BACKEND_URL = "https://swing-signal-backend.danniel-rashev.workers.dev";
-
 const DEFAULTS = {
   symbols: ["NVDA","AMD","MU","AVGO","TSLA","AAPL","AMZN","META","MSFT","GOOGL"],
   target: 10,
   levels: [5,8,10],
-  backend: localStorage.getItem("swingBackend") || DEFAULT_BACKEND_URL
+  backend: localStorage.getItem("swingBackend") || ""
 };
 
 let state = JSON.parse(localStorage.getItem("swingState") || "null") || {
