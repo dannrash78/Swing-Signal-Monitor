@@ -72,17 +72,31 @@ async function render(){
     let data = null;
     try { data = await r.json(); } catch {}
 
-    if(!r.ok) throw new Error(data?.error || ("HTTP " + r.status));
+    // The backend may return useful partial data together with a non-2xx status.
+    // Handle API quota information before treating the HTTP status as a generic error.
+    if (data?.rateLimited) {
+      cards.innerHTML = "";
+      const notice = document.createElement("div");
+      notice.className = "card error";
+      notice.innerHTML = '<b>⚠️ Достигнат е лимитът на Alpha Vantage</b><p>Днешният API лимит е достигнат. Новите заявки са спрени, за да не изчерпваме допълнително квотата.</p><p>Ако има кеширани данни, те могат да продължат да се използват.</p>';
+      cards.appendChild(notice);
+      if (Array.isArray(data.results)) data.results.forEach(x => cards.appendChild(card(x, target, levels)));
+      return;
+    }
+
+    if(!r.ok){
+      let message = data?.error || ("HTTP " + r.status);
+      if(r.status === 403) {
+        message = "Достъпът до Backend-а е отказан (HTTP 403). Провери Cloudflare Worker / Access настройките.";
+      } else if(r.status === 429) {
+        message = "Backend-ът е ограничил заявките (HTTP 429). Изчакай и опитай отново по-късно.";
+      }
+      throw new Error(message);
+    }
+
     if(!data || !Array.isArray(data.results)) throw new Error("Невалиден отговор от backend.");
 
     cards.innerHTML = "";
-
-    if (data.rateLimited) {
-      const notice = document.createElement("div");
-      notice.className = "card error";
-      notice.innerHTML = '<b>⚠️ Alpha Vantage API лимит</b><p>Останалите заявки са спрени, за да не изчерпваме допълнително дневния лимит.</p><p>Кешираните данни продължават да се използват.</p>';
-      cards.appendChild(notice);
-    }
 
     data.results.forEach(x => cards.appendChild(card(x, target, levels)));
   }catch(e){
