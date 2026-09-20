@@ -21,6 +21,12 @@ state.selectedSymbols = Array.isArray(state.selectedSymbols)
 state.lastResults = Array.isArray(state.lastResults) ? state.lastResults : [];
 state.hiddenSymbols = Array.isArray(state.hiddenSymbols) ? state.hiddenSymbols.filter(s => state.symbols.includes(s)) : [];
 
+// Recovery: AMD was accidentally removed in an older version. Restore it to the watchlist
+// without touching the other saved stocks, positions, or cached results.
+if (!state.symbols.includes("AMD")) state.symbols.splice(1, 0, "AMD");
+if (!state.selectedSymbols.includes("AMD")) state.selectedSymbols.push("AMD");
+state.hiddenSymbols = state.hiddenSymbols.filter(s => s !== "AMD");
+
 const $ = id => document.getElementById(id);
 $("backendUrl").value = localStorage.getItem("swingBackend") || DEFAULTS.backend;
 $("targetPct").value = DEFAULTS.target;
