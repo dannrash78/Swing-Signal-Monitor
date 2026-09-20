@@ -45,14 +45,18 @@ state.selectedSymbols = Array.isArray(state.selectedSymbols)
 state.lastResults = Array.isArray(state.lastResults) ? state.lastResults : [];
 state.hiddenSymbols = Array.isArray(state.hiddenSymbols) ? state.hiddenSymbols.filter(s => state.symbols.includes(s)) : [];
 
-// One-time migration: restore AMD if it was lost by an older version.
-// After this migration, visibility is fully controlled by the user and hiding AMD persists.
-if (!localStorage.getItem("swingAmdMigrationV1")) {
-  if (!state.symbols.includes("AMD")) state.symbols.splice(1, 0, "AMD");
-  if (!state.selectedSymbols.includes("AMD")) state.selectedSymbols.push("AMD");
-  state.hiddenSymbols = state.hiddenSymbols.filter(s => s !== "AMD");
-  localStorage.setItem("swingAmdMigrationV1", "1");
-  save();
+// One-time migration: restore AMD only if it was actually missing.
+// IMPORTANT: never unhide an existing AMD entry. From this point onward,
+// visibility is entirely controlled by the user's hiddenSymbols choice.
+if (!localStorage.getItem("swingAmdMigrationV2")) {
+  const amdWasMissing = !state.symbols.includes("AMD");
+  if (amdWasMissing) {
+    state.symbols.splice(1, 0, "AMD");
+    if (!state.selectedSymbols.includes("AMD")) state.selectedSymbols.push("AMD");
+    state.hiddenSymbols = state.hiddenSymbols.filter(s => s !== "AMD");
+    save();
+  }
+  localStorage.setItem("swingAmdMigrationV2", "1");
 }
 
 const $ = id => document.getElementById(id);
