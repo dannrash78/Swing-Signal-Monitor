@@ -18,7 +18,7 @@ export default {
       return json({
         ok: true,
         service: "swing-signal-backend",
-        version: "1.9",
+        version: "1.9.1",
         providers: providerHealth(env)
       });
     }
