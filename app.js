@@ -9,7 +9,8 @@ let state = JSON.parse(localStorage.getItem("swingState") || "null") || {
   symbols: DEFAULTS.symbols,
   positions: {},
   selectedSymbols: DEFAULTS.symbols.slice(),
-  lastResults: []
+  lastResults: [],
+  hiddenSymbols: []
 };
 
 state.symbols = Array.isArray(state.symbols) ? state.symbols : DEFAULTS.symbols.slice();
@@ -18,6 +19,7 @@ state.selectedSymbols = Array.isArray(state.selectedSymbols)
   ? state.selectedSymbols.filter(s => state.symbols.includes(s))
   : state.symbols.slice();
 state.lastResults = Array.isArray(state.lastResults) ? state.lastResults : [];
+state.hiddenSymbols = Array.isArray(state.hiddenSymbols) ? state.hiddenSymbols.filter(s => state.symbols.includes(s)) : [];
 
 const $ = id => document.getElementById(id);
 $("backendUrl").value = localStorage.getItem("swingBackend") || DEFAULTS.backend;
@@ -62,6 +64,7 @@ function removeStock(s){
   state.symbols = state.symbols.filter(x=>x!==s);
   state.selectedSymbols = state.selectedSymbols.filter(x=>x!==s);
   state.lastResults = state.lastResults.filter(x=>x.symbol!==s);
+  state.hiddenSymbols = state.hiddenSymbols.filter(x=>x!==s);
   delete state.positions[s];
   save();
   renderCards();
@@ -78,6 +81,35 @@ function setSelected(symbol, checked){
   if (card) card.classList.toggle("selected", checked);
 }
 
+function hideStock(s){
+  if (!state.hiddenSymbols.includes(s)) state.hiddenSymbols.push(s);
+  save();
+  renderCards();
+}
+
+function showStock(s){
+  state.hiddenSymbols = state.hiddenSymbols.filter(x=>x!==s);
+  save();
+  renderCards();
+}
+
+function renderHiddenList(){
+  const list = $("hiddenList");
+  if (!list) return;
+  list.innerHTML = "";
+  if (!state.hiddenSymbols.length) {
+    list.innerHTML = '<span class="hidden-empty">Няма скрити акции.</span>';
+    return;
+  }
+  state.hiddenSymbols.forEach(symbol => {
+    const item = document.createElement("div");
+    item.className = "hidden-item";
+    item.innerHTML = '<span>' + escapeHtml(symbol) + '</span><button type="button" class="show-btn" data-show="' + escapeHtml(symbol) + '">Покажи</button>';
+    item.querySelector("[data-show]").onclick = () => showStock(symbol);
+    list.appendChild(item);
+  });
+}
+
 function renderCards(){
   const cards = $("cards");
   const target = Number($("targetPct").value) || 10;
@@ -91,10 +123,11 @@ function renderCards(){
     return;
   }
 
-  state.symbols.forEach(symbol => {
+  state.symbols.filter(symbol => !state.hiddenSymbols.includes(symbol)).forEach(symbol => {
     const result = results.get(symbol);
     cards.appendChild(result ? card(result,target,levels) : placeholderCard(symbol));
   });
+  renderHiddenList();
 }
 
 function placeholderCard(symbol){
@@ -109,10 +142,12 @@ function placeholderCard(symbol){
     '</div>' +
     '<div class="symbol">' + escapeHtml(symbol) + '</div>' +
     '<div class="signal">⚪ Няма заредени данни</div>' +
-    '<div class="reason">Избери или остави отметката според това дали искаш заявка за тази акция при Update.</div>';
+    '<div class="reason">Избери заявка за Update или скрий акцията от основния списък.</div>' +
+    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button>';
 
   div.querySelector("[data-select]").onchange = e => setSelected(symbol,e.target.checked);
   div.querySelector("[data-remove]").onclick = () => removeStock(symbol);
+  div.querySelector("[data-hide]").onclick = () => hideStock(symbol);
   return div;
 }
 
@@ -151,8 +186,8 @@ async function updateSelected(){
       if (Array.isArray(data.results)) {
         state.lastResults = mergeResults(state.lastResults,data.results);
         save();
-        data.results.forEach(x => cards.appendChild(card(x,target,levels)));
       }
+      renderCards();
       return;
     }
 
@@ -290,10 +325,12 @@ function card(x,target,levels){
       '<div class="metric">Обновено<b>' + escapeHtml(x.date || "—") + '</b></div>' +
     '</div>' +
     (entry ? '<div class="position">Вход: <b>$' + num(entry) + '</b> · P/L: <b>' + ((x.price/entry-1)*100).toFixed(2) + '%</b></div>' : '') +
-    '<div class="reason">' + escapeHtml(reason) + '</div>';
+    '<div class="reason">' + escapeHtml(reason) + '</div>' +
+    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
 
   div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
   div.querySelector("[data-remove]").onclick=()=>removeStock(x.symbol);
+  div.querySelector("[data-hide]").onclick=()=>hideStock(x.symbol);
   return div;
 }
 
@@ -316,7 +353,8 @@ function statusCard(x){
     '</div>' +
     '<div class="symbol">' + escapeHtml(x.symbol) + '</div>' +
     '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
-    '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>';
+    '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
+    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
   div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
   div.querySelector("[data-remove]").onclick=()=>removeStock(x.symbol);
   return div;
