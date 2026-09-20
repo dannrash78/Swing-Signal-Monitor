@@ -45,12 +45,15 @@ state.selectedSymbols = Array.isArray(state.selectedSymbols)
 state.lastResults = Array.isArray(state.lastResults) ? state.lastResults : [];
 state.hiddenSymbols = Array.isArray(state.hiddenSymbols) ? state.hiddenSymbols.filter(s => state.symbols.includes(s)) : [];
 
-// Recovery: AMD was accidentally removed in an older version. Restore it to the watchlist
-// without touching the other saved stocks, positions, or cached results.
-if (!state.symbols.includes("AMD")) state.symbols.splice(1, 0, "AMD");
-if (!state.selectedSymbols.includes("AMD")) state.selectedSymbols.push("AMD");
-state.hiddenSymbols = state.hiddenSymbols.filter(s => s !== "AMD");
-save();
+// One-time migration: restore AMD if it was lost by an older version.
+// After this migration, visibility is fully controlled by the user and hiding AMD persists.
+if (!localStorage.getItem("swingAmdMigrationV1")) {
+  if (!state.symbols.includes("AMD")) state.symbols.splice(1, 0, "AMD");
+  if (!state.selectedSymbols.includes("AMD")) state.selectedSymbols.push("AMD");
+  state.hiddenSymbols = state.hiddenSymbols.filter(s => s !== "AMD");
+  localStorage.setItem("swingAmdMigrationV1", "1");
+  save();
+}
 
 const $ = id => document.getElementById(id);
 $("backendUrl").value = localStorage.getItem("swingBackend") || DEFAULTS.backend;
