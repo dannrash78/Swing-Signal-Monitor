@@ -9,7 +9,7 @@
 <body>
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.8</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.9</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
   <div class="header-actions">
@@ -29,6 +29,14 @@
       <input id="levels" value="5,8,10" aria-label="Нива на спад">
     </label>
     <button id="saveSettings">Запази настройки</button>
+    <div class="provider-settings">
+      <h3>📡 Data Sources</h3>
+      <p class="hint">Включвай/изключвай каналите и подреждай приоритета. При лимит или грешка Worker-ът преминава към следващия включен канал.</p>
+      <div class="provider-row"><label><input id="provider-alphavantage-enabled" type="checkbox"> Alpha Vantage</label><select id="provider-alphavantage-priority"><option>1</option><option>2</option><option>3</option></select></div>
+      <div class="provider-row"><label><input id="provider-twelvedata-enabled" type="checkbox"> Twelve Data</label><select id="provider-twelvedata-priority"><option>1</option><option>2</option><option>3</option></select></div>
+      <div class="provider-row"><label><input id="provider-finnhub-enabled" type="checkbox"> Finnhub</label><select id="provider-finnhub-priority"><option>1</option><option>2</option><option>3</option></select></div>
+      <div id="providerUsage" class="provider-usage"></div>
+    </div>
   </section>
   <section>
     <div class="toolbar">
@@ -67,6 +75,6 @@
     </menu>
   </form>
 </dialog>
-<script src="app.js?v=1.8"></script>
+<script src="app.js?v=1.9"></script>
 </body>
 </html>
