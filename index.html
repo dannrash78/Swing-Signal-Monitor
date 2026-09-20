@@ -9,12 +9,14 @@
 <body>
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.2</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.3</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
-  <button id="refreshBtn">↻ Обнови</button>
+  <div class="header-actions">
+    <button id="healthBtn" class="secondary">✓ Check Health</button>
+    <button id="updateBtn">↻ Update</button>
+  </div>
 </header>
-
 <main>
   <section class="settings">
     <label>Backend URL
@@ -28,15 +30,17 @@
     </label>
     <button id="saveSettings">Запази настройки</button>
   </section>
-
   <section>
     <div class="toolbar">
-      <h2>Watchlist</h2>
+      <div>
+        <h2>Watchlist</h2>
+        <p class="hint">Избери за кои акции да се направи заявка при <b>Update</b>. Изборът се запазва.</p>
+      </div>
       <button id="addBtn">+ Добави акция</button>
     </div>
     <div id="cards" class="grid"></div>
   </section>
-
+  <section id="healthResult" class="health-result" hidden></section>
   <section class="legend">
     <b>Сигнали:</b>
     🟢 ENTRY ZONE = цената е достигнала зададено ниво на спад;
@@ -45,7 +49,6 @@
     ⚪ WAIT = няма сигнал.
   </section>
 </main>
-
 <dialog id="stockDialog">
   <form method="dialog" id="stockForm">
     <h3>Добави акция</h3>
@@ -58,7 +61,6 @@
     </menu>
   </form>
 </dialog>
-
 <script src="app.js"></script>
 </body>
 </html>
