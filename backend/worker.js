@@ -18,9 +18,13 @@ export default {
       return json({
         ok: true,
         service: "swing-signal-backend",
-        version: "1.9.1",
-        providers: providerHealth(env)
+        version: "1.9.2",
+        providers: await providerHealth(env)
       });
+    }
+
+    if (url.pathname === "/api/test") {
+      return testProviderRequest(url, env);
     }
 
     if (url.pathname !== "/api/scan") return json({ error: "Not found" }, 404);
@@ -55,21 +59,23 @@ export default {
       }
 
       let resolved = null;
+      const attempts = [];
       for (const provider of providers) {
-        if (!isConfigured(provider, env)) continue;
+        if (!isConfigured(provider, env)) {
+          attempts.push({ provider, status: "not_configured" });
+          continue;
+        }
         try {
           const data = await fetchProvider(provider, symbol, env, usage);
+          attempts.push({ provider, status: data.result ? "ok" : (data.rateLimited ? "rate_limited" : (data.permanentError ? "error" : "no_valid_data")), message: data.message || null });
           if (data.rateLimited) continue;
           if (data.result) {
             resolved = { ...data.result, source: provider };
             break;
           }
-          if (data.permanentError) {
-            if (provider === "alphavantage") continue;
-            if (provider === "twelvedata") continue;
-            if (provider === "finnhub") continue;
-          }
-        } catch (_) {
+          if (data.permanentError) continue;
+        } catch (e) {
+          attempts.push({ provider, status: "network_error", message: e?.message || "Network error" });
           // Try the next enabled provider.
         }
       }
@@ -81,7 +87,8 @@ export default {
         results.push({
           symbol,
           status: "provider_unavailable",
-          error: "No enabled data provider returned valid data."
+          error: "No enabled data provider returned valid data.",
+          attempts
         });
       }
     }
@@ -95,6 +102,56 @@ export default {
     });
   }
 };
+
+async function checkProviderNetwork(url) {
+  const started = Date.now();
+  try {
+    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.9.2" } });
+    return { reachable: true, httpStatus: response.status, latencyMs: Date.now() - started };
+  } catch (e) {
+    return { reachable: false, httpStatus: null, latencyMs: Date.now() - started, error: e?.message || "Network error" };
+  }
+}
+
+async function testProviderRequest(url, env) {
+  const provider = (url.searchParams.get("provider") || "").toLowerCase();
+  const symbol = (url.searchParams.get("symbol") || "NVDA").trim().toUpperCase();
+  if (!PROVIDERS.includes(provider)) return json({ ok: false, error: "Unknown provider" }, 400);
+  if (!isConfigured(provider, env)) return json({ ok: false, provider, symbol, status: "not_configured", error: "Provider API key is not configured." }, 200);
+
+  const usage = {
+    alphavantage: { configured: !!env.ALPHA_VANTAGE_KEY, apiCalls: 0 },
+    twelvedata: { configured: !!env.TWELVE_DATA_API_KEY, apiCalls: 0, minuteCreditsLeft: null, dailyLimit: 800 },
+    finnhub: { configured: !!env.FINNHUB_API_KEY, apiCalls: 0 }
+  };
+  try {
+    const data = await fetchProvider(provider, symbol, env, usage);
+    return json({
+      ok: !!data.result,
+      provider,
+      symbol,
+      status: data.result ? "ok" : (data.rateLimited ? "rate_limited" : "error"),
+      message: data.message || null,
+      result: data.result || null,
+      usage
+    });
+  } catch (e) {
+    return json({ ok: false, provider, symbol, status: "network_error", error: e?.message || "Network error", usage });
+  }
+}
+
+async function providerHealth(env) {
+  const checks = await Promise.all([
+    checkProviderNetwork("https://www.alphavantage.co/"),
+    checkProviderNetwork("https://api.twelvedata.com/"),
+    checkProviderNetwork("https://finnhub.io/")
+  ]);
+  return {
+    alphavantage: { configured: !!env.ALPHA_VANTAGE_KEY, network: checks[0] },
+    twelvedata: { configured: !!env.TWELVE_DATA_API_KEY, network: checks[1] },
+    finnhub: { configured: !!env.FINNHUB_API_KEY, network: checks[2] }
+  };
+}
 
 function providerHealth(env) {
   return {
@@ -125,10 +182,11 @@ async function fetchAlphaVantage(symbol, key, usage) {
   const response = await fetch(api);
   const data = await response.json();
   usage.alphavantage.apiCalls++;
-  if (data["Note"] || data["Information"]) return { rateLimited: true };
-  if (data["Error Message"]) return { permanentError: true };
+  if (data["Note"] || data["Information"]) return { rateLimited: true, message: data["Note"] || data["Information"] };
+  if (data["Error Message"]) return { permanentError: true, message: data["Error Message"] };
   const series = data["Time Series (Daily)"];
-  return { result: normalizeDaily(symbol, series, "alphavantage") };
+  const result = normalizeDaily(symbol, series, "alphavantage");
+  return result ? { result } : { permanentError: true, message: "No valid daily history returned." };
 }
 
 async function fetchTwelveData(symbol, key, usage) {
@@ -144,10 +202,11 @@ async function fetchTwelveData(symbol, key, usage) {
   const left = Number(response.headers.get("api-credits-left"));
   if (Number.isFinite(left)) usage.twelvedata.minuteCreditsLeft = left;
   if (data.status === "error" || data.code === 429 || /limit|credit|quota/i.test(data.message || "")) {
-    return { rateLimited: true };
+    return { rateLimited: true, message: data.message || "Rate limit / credit limit" };
   }
   const values = Array.isArray(data.values) ? data.values : null;
-  return { result: normalizeDaily(symbol, values, "twelvedata") };
+  const result = normalizeDaily(symbol, values, "twelvedata");
+  return result ? { result } : { permanentError: true, message: data.message || "No valid daily history returned." };
 }
 
 async function fetchFinnhub(symbol, key, usage) {
@@ -162,13 +221,15 @@ async function fetchFinnhub(symbol, key, usage) {
   const response = await fetch(api);
   const data = await response.json();
   usage.finnhub.apiCalls++;
-  if (!response.ok || data.s === "no_data") return { permanentError: true };
-  if (data.s !== "ok" || !Array.isArray(data.c) || !Array.isArray(data.t)) return { permanentError: true };
+  if (response.status === 429) return { rateLimited: true, message: "HTTP 429 rate limit" };
+  if (!response.ok || data.s === "no_data") return { permanentError: true, message: data.error || data.s || "No data" };
+  if (data.s !== "ok" || !Array.isArray(data.c) || !Array.isArray(data.t)) return { permanentError: true, message: data.error || "Invalid candle response" };
   const values = data.t.map((ts, i) => ({
     date: new Date(ts * 1000).toISOString().slice(0, 10),
     close: Number(data.c[i])
   }));
-  return { result: normalizeDaily(symbol, values, "finnhub") };
+  const result = normalizeDaily(symbol, values, "finnhub");
+  return result ? { result } : { permanentError: true, message: "No valid daily history returned." };
 }
 
 function normalizeDaily(symbol, raw, source) {
