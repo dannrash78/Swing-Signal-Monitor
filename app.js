@@ -34,6 +34,12 @@ $("saveSettings").onclick = () => {
 
 $("updateBtn").onclick = updateSelected;
 $("healthBtn").onclick = checkHealth;
+$("hiddenToggleBtn").onclick = () => {
+  const section = document.querySelector(".hidden-section");
+  const hidden = section.hasAttribute("hidden");
+  if (hidden) section.removeAttribute("hidden"); else section.setAttribute("hidden", "");
+  updateHiddenToggle();
+};
 
 $("addBtn").onclick = () => {
   $("symbol").value = "";
@@ -59,6 +65,11 @@ $("stockForm").onsubmit = e => {
 };
 
 function save(){ localStorage.setItem("swingState", JSON.stringify(state)); }
+
+function updateHiddenToggle(){
+  const btn = $("hiddenToggleBtn");
+  if (btn) btn.textContent = "Невидим списък (" + state.hiddenSymbols.length + ")";
+}
 
 function removeStock(s){
   state.symbols = state.symbols.filter(x=>x!==s);
@@ -128,6 +139,7 @@ function renderCards(){
     cards.appendChild(result ? card(result,target,levels) : placeholderCard(symbol));
   });
   renderHiddenList();
+  updateHiddenToggle();
 }
 
 function placeholderCard(symbol){
@@ -146,7 +158,7 @@ function placeholderCard(symbol){
     '<button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button>';
 
   div.querySelector("[data-select]").onchange = e => setSelected(symbol,e.target.checked);
-  div.querySelector("[data-remove]").onclick = () => removeStock(symbol);
+  div.querySelector("[data-remove]").onclick = () => hideStock(symbol);
   div.querySelector("[data-hide]").onclick = () => hideStock(symbol);
   return div;
 }
@@ -329,7 +341,7 @@ function card(x,target,levels){
     '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
 
   div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
-  div.querySelector("[data-remove]").onclick=()=>removeStock(x.symbol);
+  div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
   div.querySelector("[data-hide]").onclick=()=>hideStock(x.symbol);
   return div;
 }
@@ -356,7 +368,8 @@ function statusCard(x){
     '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
     '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
   div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
-  div.querySelector("[data-remove]").onclick=()=>removeStock(x.symbol);
+  div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
+  div.querySelector("[data-hide]").onclick=()=>hideStock(x.symbol);
   return div;
 }
 
