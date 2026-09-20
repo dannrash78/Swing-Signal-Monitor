@@ -73,6 +73,9 @@ $("backendUrl").value = localStorage.getItem("swingBackend") || DEFAULTS.backend
 $("targetPct").value = DEFAULTS.target;
 $("levels").value = DEFAULTS.levels.join(",");
 renderProviderSettings();
+document.querySelectorAll("[data-provider-test]").forEach(btn => {
+  btn.onclick = () => testProvider(btn.dataset.providerTest);
+});
 
 $("saveSettings").onclick = () => {
   const backend = $("backendUrl").value.trim().replace(/\/$/,"");
@@ -161,6 +164,7 @@ function providerName(source){
   return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
 }
 function renderHealthProviders(providers){
+
   const el = $("providerHealth");
   if (!el) return;
   el.innerHTML = Object.entries(providers).map(([p,v]) =>
@@ -282,6 +286,31 @@ function placeholderCard(symbol){
   return div;
 }
 
+async function testProvider(provider){
+  const result = $("providerTestResult");
+  const backend = $("backendUrl").value.trim().replace(/\/$/,"");
+  if(!backend) return;
+  result.hidden = false;
+  result.className = "provider-test-result";
+  result.innerHTML = "<b>Тест:</b> " + escapeHtml(providerName(provider)) + " / NVDA…";
+  try{
+    const r = await fetch(backend + "/api/test?provider=" + encodeURIComponent(provider) + "&symbol=NVDA",{cache:"no-store"});
+    const data = await r.json();
+    const ok = r.ok && data?.ok;
+    result.className = "provider-test-result " + (ok ? "health-ok" : "health-error");
+    result.innerHTML =
+      "<b>" + (ok ? "✅ " : "❌ ") + escapeHtml(providerName(provider)) + " — " + escapeHtml(String(data.status || "error").toUpperCase()) + "</b>" +
+      "<p><b>Symbol:</b> NVDA</p>" +
+      (data.message ? "<p><b>Причина:</b> " + escapeHtml(data.message) + "</p>" : "") +
+      (data.error ? "<p><b>Грешка:</b> " + escapeHtml(data.error) + "</p>" : "") +
+      (data.result ? "<p><b>Цена:</b> $" + escapeHtml(num(data.result.price)) + " · <b>Дата:</b> " + escapeHtml(data.result.date) + "</p>" : "") +
+      "<p><b>API calls:</b> " + escapeHtml(String(data.usage?.[provider]?.apiCalls ?? "—")) + "</p>";
+  }catch(e){
+    result.className = "provider-test-result health-error";
+    result.innerHTML = "<b>❌ Network/Backend error</b><p>" + escapeHtml(e.message || "Няма връзка.") + "</p>";
+  }
+}
+
 async function updateSelected(){
   const cards = $("cards");
   const backend = $("backendUrl").value.trim().replace(/\/$/,"");
@@ -376,7 +405,8 @@ async function checkHealth(){
       "<p><b>URL:</b> " + escapeHtml(healthUrl) + "</p>" +
       "<p><b>HTTP:</b> " + escapeHtml(String(r.status)) + "</p>" +
       "<p><b>Резултат:</b> " + escapeHtml(data ? JSON.stringify(data) : (text || "Няма четим отговор.")) + "</p>" +
-      '<div id="providerHealth"></div>';
+      '<div id="providerHealth"></div>'; 
+    if (data?.providers) renderHealthProviders(data.providers);
   }catch(e){
     result.className = "health-result health-error";
     result.innerHTML =
@@ -491,6 +521,7 @@ function statusCard(x){
     '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
     '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
     '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
+    (Array.isArray(x.attempts) ? '<div class="provider-attempts">' + x.attempts.map(a => '<div><b>' + escapeHtml(providerName(a.provider)) + ':</b> ' + escapeHtml(a.status) + (a.message ? ' — ' + escapeHtml(a.message) : '') + '</div>').join('') + '</div>' : '') +
     '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
     '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
   div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
