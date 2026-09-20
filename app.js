@@ -462,7 +462,7 @@ function card(x,target,levels){
     (entry ? '<div class="position">Вход: <b>$' + num(entry) + '</b> · P/L: <b>' + ((x.price/entry-1)*100).toFixed(2) + '%</b></div>' : '') +
     '<div class="reason">' + escapeHtml(reason) + '</div>' +
     '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
-    '<button type="button" class="hide-btn' data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
+    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
 
   div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
   div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
