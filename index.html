@@ -9,7 +9,7 @@
 <body>
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.9.2</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.9.3</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
   <div class="header-actions">
@@ -35,7 +35,7 @@
       <div class="provider-row"><label><input id="provider-alphavantage-enabled" type="checkbox"> Alpha Vantage</label><select id="provider-alphavantage-priority"><option>1</option><option>2</option><option>3</option></select><button type="button" class="provider-test" data-provider-test="alphavantage">Test NVDA</button></div>
       <div class="provider-row"><label><input id="provider-twelvedata-enabled" type="checkbox"> Twelve Data</label><select id="provider-twelvedata-priority"><option>1</option><option>2</option><option>3</option></select><button type="button" class="provider-test" data-provider-test="twelvedata">Test NVDA</button></div>
       <div class="provider-row"><label><input id="provider-finnhub-enabled" type="checkbox"> Finnhub</label><select id="provider-finnhub-priority"><option>1</option><option>2</option><option>3</option></select><button type="button" class="provider-test" data-provider-test="finnhub">Test NVDA</button></div>
-      <div id="providerUsage" class="provider-usage"></div><div id="providerTestResult" class="provider-test-result" hidden></div>
+      <div id="providerUsage" class="provider-usage"></div><div class="usage-legend">Броячът отчита реалните заявки, направени от този инструмент през този браузър. При fallback една акция може да използва повече от една заявка.</div><div id="providerTestResult" class="provider-test-result" hidden></div>
     </div>
   </section>
   <section>
@@ -75,6 +75,6 @@
     </menu>
   </form>
 </dialog>
-<script src="app.js?v=1.9.2"></script>
+<script src="app.js?v=1.9.3"></script>
 </body>
 </html>
