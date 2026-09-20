@@ -2,24 +2,36 @@ const DEFAULTS = {
   symbols: ["NVDA","AMD","MU","AVGO","TSLA","AAPL","AMZN","META","MSFT","GOOGL"],
   target: 10,
   levels: [5,8,10],
-  backend: localStorage.getItem("swingBackend") || "https://swing-signal-backend.danniel-rashev.workers.dev"
+  backend: "https://swing-signal-backend.danniel-rashev.workers.dev"
 };
 
 let state = JSON.parse(localStorage.getItem("swingState") || "null") || {
   symbols: DEFAULTS.symbols,
-  positions: {}
+  positions: {},
+  selectedSymbols: DEFAULTS.symbols.slice(),
+  lastResults: []
 };
 
+state.symbols = Array.isArray(state.symbols) ? state.symbols : DEFAULTS.symbols.slice();
+state.positions = state.positions || {};
+state.selectedSymbols = Array.isArray(state.selectedSymbols)
+  ? state.selectedSymbols.filter(s => state.symbols.includes(s))
+  : state.symbols.slice();
+state.lastResults = Array.isArray(state.lastResults) ? state.lastResults : [];
+
 const $ = id => document.getElementById(id);
-$("backendUrl").value = DEFAULTS.backend || "https://swing-signal-backend.danniel-rashev.workers.dev";
+$("backendUrl").value = localStorage.getItem("swingBackend") || DEFAULTS.backend;
 $("targetPct").value = DEFAULTS.target;
 $("levels").value = DEFAULTS.levels.join(",");
 
 $("saveSettings").onclick = () => {
-  localStorage.setItem("swingBackend", $("backendUrl").value.trim().replace(/\/$/,""));
-  render();
+  const backend = $("backendUrl").value.trim().replace(/\/$/,"");
+  localStorage.setItem("swingBackend", backend);
+  renderCards();
 };
-$("refreshBtn").onclick = render;
+
+$("updateBtn").onclick = updateSelected;
+$("healthBtn").onclick = checkHealth;
 
 $("addBtn").onclick = () => {
   $("symbol").value = "";
@@ -29,7 +41,6 @@ $("addBtn").onclick = () => {
   $("stockDialog").showModal();
 };
 $("holding").onchange = e => $("entryPrice").disabled = !e.target.checked;
-
 $("cancelStock").onclick = () => $("stockDialog").close();
 
 $("stockForm").onsubmit = e => {
@@ -37,102 +48,190 @@ $("stockForm").onsubmit = e => {
   const s = $("symbol").value.trim().toUpperCase();
   if (!/^[A-Z.]{1,8}$/.test(s)) return alert("Въведи валиден ticker.");
   if (!state.symbols.includes(s)) state.symbols.push(s);
+  if (!state.selectedSymbols.includes(s)) state.selectedSymbols.push(s);
   if ($("holding").checked && Number($("entryPrice").value) > 0) state.positions[s] = Number($("entryPrice").value);
   else delete state.positions[s];
   save();
   $("stockDialog").close();
-  render();
+  renderCards();
 };
 
 function save(){ localStorage.setItem("swingState", JSON.stringify(state)); }
 
 function removeStock(s){
   state.symbols = state.symbols.filter(x=>x!==s);
+  state.selectedSymbols = state.selectedSymbols.filter(x=>x!==s);
+  state.lastResults = state.lastResults.filter(x=>x.symbol!==s);
   delete state.positions[s];
   save();
-  render();
+  renderCards();
 }
 
-async function render(){
-  const cards = $("cards");
-  cards.innerHTML = '<div class="card loading">Зареждам данните…</div>';
+function setSelected(symbol, checked){
+  if (checked) {
+    if (!state.selectedSymbols.includes(symbol)) state.selectedSymbols.push(symbol);
+  } else {
+    state.selectedSymbols = state.selectedSymbols.filter(x=>x!==symbol);
+  }
+  save();
+  const card = document.querySelector('[data-symbol-card="' + CSS.escape(symbol) + '"]');
+  if (card) card.classList.toggle("selected", checked);
+}
 
-  const backend = $("backendUrl").value.trim().replace(/\/$/,"");
-  if(!backend){
-    cards.innerHTML = '<div class="card"><b>Въведи Backend URL.</b><p>Постави адреса на Cloudflare Worker.</p></div>';
+function renderCards(){
+  const cards = $("cards");
+  const target = Number($("targetPct").value) || 10;
+  const levels = $("levels").value.split(",").map(Number).filter(x=>x>0);
+  const results = new Map(state.lastResults.map(x=>[x.symbol,x]));
+
+  cards.innerHTML = "";
+
+  if (!state.symbols.length) {
+    cards.innerHTML = '<div class="card"><b>Watchlist е празен.</b><p>Добави акция, за да започнеш.</p></div>';
     return;
   }
+
+  state.symbols.forEach(symbol => {
+    const result = results.get(symbol);
+    cards.appendChild(result ? card(result,target,levels) : placeholderCard(symbol));
+  });
+}
+
+function placeholderCard(symbol){
+  const selected = state.selectedSymbols.includes(symbol);
+  const div = document.createElement("article");
+  div.className = "card" + (selected ? " selected" : "");
+  div.dataset.symbolCard = symbol;
+  div.innerHTML =
+    '<div class="top">' +
+      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
+      '<button class="remove" data-remove="' + escapeHtml(symbol) + '">×</button>' +
+    '</div>' +
+    '<div class="symbol">' + escapeHtml(symbol) + '</div>' +
+    '<div class="signal">⚪ Няма заредени данни</div>' +
+    '<div class="reason">Избери или остави отметката според това дали искаш заявка за тази акция при Update.</div>';
+
+  div.querySelector("[data-select]").onchange = e => setSelected(symbol,e.target.checked);
+  div.querySelector("[data-remove]").onclick = () => removeStock(symbol);
+  return div;
+}
+
+async function updateSelected(){
+  const cards = $("cards");
+  const backend = $("backendUrl").value.trim().replace(/\/$/,"");
+  const selected = state.selectedSymbols.filter(s => state.symbols.includes(s));
+
+  if (!backend) {
+    cards.innerHTML = '<div class="card error"><b>Въведи Backend URL.</b><p>Постави адреса на Cloudflare Worker.</p></div>';
+    return;
+  }
+  if (!selected.length) {
+    cards.innerHTML = '<div class="card"><b>Няма избрани акции.</b><p>Постави отметка на поне една акция и натисни Update.</p></div>';
+    return;
+  }
+
+  save();
+  cards.innerHTML = '<div class="card loading">Изпращам заявка само за избраните акции: ' + escapeHtml(selected.join(", ")) + '…</div>';
 
   const target = Number($("targetPct").value) || 10;
   const levels = $("levels").value.split(",").map(Number).filter(x=>x>0);
 
   try{
-    const url = backend + "/api/scan?symbols=" + encodeURIComponent(state.symbols.join(","));
+    const url = backend + "/api/scan?symbols=" + encodeURIComponent(selected.join(","));
     const r = await fetch(url, {cache:"no-store"});
     let data = null;
     try { data = await r.json(); } catch {}
 
-    // The backend may return useful partial data together with a non-2xx status.
-    // Handle API quota information before treating the HTTP status as a generic error.
     if (data?.rateLimited) {
       cards.innerHTML = "";
       const notice = document.createElement("div");
       notice.className = "card error";
-      notice.innerHTML = '<b>⚠️ Достигнат е лимитът на Alpha Vantage</b><p>Днешният API лимит е достигнат. Новите заявки са спрени, за да не изчерпваме допълнително квотата.</p><p>Ако има кеширани данни, те могат да продължат да се използват.</p>';
+      notice.innerHTML = '<b>⚠️ Достигнат е лимитът на Alpha Vantage</b><p>Днешният API лимит е достигнат. Новите заявки са спрени.</p><p>Изпратени заявки към Worker/Alpha Vantage в тази операция: <b>' + escapeHtml(String(data.apiCalls ?? "—")) + '</b></p>';
       cards.appendChild(notice);
-      if (Array.isArray(data.results)) data.results.forEach(x => cards.appendChild(card(x, target, levels)));
+      if (Array.isArray(data.results)) {
+        state.lastResults = mergeResults(state.lastResults,data.results);
+        save();
+        data.results.forEach(x => cards.appendChild(card(x,target,levels)));
+      }
       return;
     }
 
     if(!r.ok){
       let message = data?.error || ("HTTP " + r.status);
-      if(r.status === 403) {
-        message = "Достъпът до Backend-а е отказан (HTTP 403). Провери Cloudflare Worker / Access настройките.";
-      } else if(r.status === 429) {
-        message = "Backend-ът е ограничил заявките (HTTP 429). Изчакай и опитай отново по-късно.";
-      }
+      if(r.status === 403) message = "Достъпът до Backend-а е отказан (HTTP 403). Провери Cloudflare Worker / Access настройките.";
+      else if(r.status === 429) message = "Backend-ът е ограничил заявките (HTTP 429). Изчакай и опитай отново по-късно.";
       throw new Error(message);
     }
 
     if(!data || !Array.isArray(data.results)) throw new Error("Невалиден отговор от backend.");
 
-    cards.innerHTML = "";
-
-    data.results.forEach(x => cards.appendChild(card(x, target, levels)));
+    state.lastResults = mergeResults(state.lastResults,data.results);
+    save();
+    renderCards();
   }catch(e){
     await showBackendDiagnostic(cards, backend, e);
   }
 }
 
+function mergeResults(oldResults,newResults){
+  const map = new Map(oldResults.map(x=>[x.symbol,x]));
+  newResults.forEach(x=>map.set(x.symbol,x));
+  return [...map.values()].filter(x=>state.symbols.includes(x.symbol));
+}
+
+async function checkHealth(){
+  const result = $("healthResult");
+  const backend = $("backendUrl").value.trim().replace(/\/$/,"");
+
+  if(!backend){
+    result.hidden = false;
+    result.className = "health-result health-error";
+    result.innerHTML = "<b>❌ Няма Backend URL.</b>";
+    return;
+  }
+
+  const healthUrl = backend + "/api/health";
+  result.hidden = false;
+  result.className = "health-result";
+  result.innerHTML = "<b>Проверявам Health…</b><p>URL: " + escapeHtml(healthUrl) + "</p>";
+
+  try{
+    const r = await fetch(healthUrl,{cache:"no-store"});
+    const text = await r.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch {}
+
+    result.className = "health-result " + (r.ok && data?.ok ? "health-ok" : "health-error");
+    result.innerHTML =
+      "<b>" + (r.ok && data?.ok ? "✅ Backend Health OK" : "❌ Backend Health ERROR") + "</b>" +
+      "<p><b>URL:</b> " + escapeHtml(healthUrl) + "</p>" +
+      "<p><b>HTTP:</b> " + escapeHtml(String(r.status)) + "</p>" +
+      "<p><b>Резултат:</b> " + escapeHtml(data ? JSON.stringify(data) : (text || "Няма четим отговор.")) + "</p>";
+  }catch(e){
+    result.className = "health-result health-error";
+    result.innerHTML =
+      "<b>❌ Health заявката не може да бъде изпълнена</b>" +
+      "<p><b>URL:</b> " + escapeHtml(healthUrl) + "</p>" +
+      "<p><b>Грешка:</b> " + escapeHtml(e.message || "Няма връзка.") + "</p>";
+  }
+}
+
 async function showBackendDiagnostic(cards, backend, scanError){
   cards.innerHTML = '<div class="card loading">Проверявам състоянието на Backend-а…</div>';
-
   const healthUrl = backend.replace(/\/$/,"") + "/api/health";
 
   try {
-    const r = await fetch(healthUrl, {cache:"no-store"});
+    const r = await fetch(healthUrl,{cache:"no-store"});
+    const text = await r.text();
     let data = null;
-    try { data = await r.json(); } catch {}
-
-    if (r.ok && data?.ok) {
-      cards.innerHTML =
-        '<div class="card error">' +
-          '<b>⚠️ Backend-ът работи, но сканирането не е успешно</b>' +
-          '<p><b>Health check:</b> OK</p>' +
-          '<p><b>Service:</b> ' + escapeHtml(data.service || "—") + '</p>' +
-          '<p><b>Backend version:</b> ' + escapeHtml(data.version || "—") + '</p>' +
-          '<p><b>Scan error:</b> ' + escapeHtml(scanError.message || "Неизвестна грешка") + '</p>' +
-          '<p>Проблемът вероятно е в API заявката или Alpha Vantage, а не в достъпа до Cloudflare Worker.</p>' +
-        '</div>';
-      return;
-    }
+    try { data = JSON.parse(text); } catch {}
 
     cards.innerHTML =
       '<div class="card error">' +
-        '<b>❌ Backend health check не премина</b>' +
+        '<b>' + (r.ok && data?.ok ? '⚠️ Backend-ът работи, но Update не е успешен' : '❌ Backend health check не премина') + '</b>' +
         '<p><b>Health URL:</b> ' + escapeHtml(healthUrl) + '</p>' +
-        '<p><b>HTTP:</b> ' + escapeHtml(String(r.status)) + '</p>' +
-        '<p><b>Резултат:</b> ' + escapeHtml(data?.error || data?.message || "Няма четим отговор.") + '</p>' +
+        '<p><b>Health HTTP:</b> ' + escapeHtml(String(r.status)) + '</p>' +
+        '<p><b>Health резултат:</b> ' + escapeHtml(data ? JSON.stringify(data) : (text || "Няма четим отговор.")) + '</p>' +
         '<p><b>Първоначална грешка:</b> ' + escapeHtml(scanError.message || "Неизвестна грешка") + '</p>' +
       '</div>';
   } catch (healthError) {
@@ -142,7 +241,6 @@ async function showBackendDiagnostic(cards, backend, scanError){
         '<p><b>Health URL:</b> ' + escapeHtml(healthUrl) + '</p>' +
         '<p><b>Health check:</b> ' + escapeHtml(healthError.message || "Няма връзка.") + '</p>' +
         '<p><b>Първоначална грешка:</b> ' + escapeHtml(scanError.message || "Неизвестна грешка") + '</p>' +
-        '<p>Провери Cloudflare Worker URL, deployment и Access настройките.</p>' +
       '</div>';
   }
 }
@@ -151,6 +249,7 @@ function card(x,target,levels){
   const entry = state.positions[x.symbol];
   if (x.status && x.status !== "ok") return statusCard(x);
 
+  const selected = state.selectedSymbols.includes(x.symbol);
   let cls="wait", signal="⚪ WAIT", reason="";
   const dd=x.drawdownPct;
   const reached=levels.find(l => dd <= -l);
@@ -174,9 +273,14 @@ function card(x,target,levels){
   }
 
   const div=document.createElement("article");
-  div.className="card " + cls;
+  div.className="card " + cls + (selected ? " selected" : "");
+  div.dataset.symbolCard = x.symbol;
   div.innerHTML =
-    '<div class="top"><span class="symbol">' + escapeHtml(x.symbol) + '</span><button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button></div>' +
+    '<div class="top">' +
+      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
+      '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
+    '</div>' +
+    '<div class="symbol">' + escapeHtml(x.symbol) + '</div>' +
     '<div class="price">$' + num(x.price) + '</div>' +
     '<div class="signal">' + signal + '</div>' +
     '<div class="metrics">' +
@@ -188,11 +292,13 @@ function card(x,target,levels){
     (entry ? '<div class="position">Вход: <b>$' + num(entry) + '</b> · P/L: <b>' + ((x.price/entry-1)*100).toFixed(2) + '%</b></div>' : '') +
     '<div class="reason">' + escapeHtml(reason) + '</div>';
 
+  div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
   div.querySelector("[data-remove]").onclick=()=>removeStock(x.symbol);
   return div;
 }
 
 function statusCard(x){
+  const selected = state.selectedSymbols.includes(x.symbol);
   const labels = {
     rate_limited: "⚠️ API LIMIT",
     no_data: "⚠️ NO DATA",
@@ -201,11 +307,17 @@ function statusCard(x){
     error: "⚠️ DATA ERROR"
   };
   const div=document.createElement("article");
-  div.className="card error";
+  div.className="card error" + (selected ? " selected" : "");
+  div.dataset.symbolCard = x.symbol;
   div.innerHTML =
-    '<div class="top"><span class="symbol">' + escapeHtml(x.symbol) + '</span><button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button></div>' +
+    '<div class="top">' +
+      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
+      '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
+    '</div>' +
+    '<div class="symbol">' + escapeHtml(x.symbol) + '</div>' +
     '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
     '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>';
+  div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
   div.querySelector("[data-remove]").onclick=()=>removeStock(x.symbol);
   return div;
 }
@@ -214,4 +326,5 @@ const num=x=>Number(x).toFixed(2);
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 }
-render();
+
+renderCards();
