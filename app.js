@@ -144,21 +144,42 @@ function enabledProviders(){
 function updateUsagePanel(usage){
   const el = $("providerUsage");
   if (!el) return;
-  const key = "swingTwelveDailyUsage";
+
   const today = new Date().toISOString().slice(0,10);
-  const stored = JSON.parse(localStorage.getItem(key) || "null") || {date:today,calls:0};
-  if (stored.date !== today) { stored.date=today; stored.calls=0; }
-  if (usage?.twelvedata?.apiCalls) {
-    stored.calls += Number(usage.twelvedata.apiCalls) || 0;
-    localStorage.setItem(key, JSON.stringify(stored));
+  const key = "swingProviderDailyUsage";
+  const stored = JSON.parse(localStorage.getItem(key) || "null") || {
+    date: today,
+    alphavantage: 0,
+    twelvedata: 0,
+    finnhub: 0
+  };
+  if (stored.date !== today) {
+    stored.date = today;
+    stored.alphavantage = 0;
+    stored.twelvedata = 0;
+    stored.finnhub = 0;
   }
-  const remaining = Math.max(0, 800 - stored.calls);
+
+  ["alphavantage","twelvedata","finnhub"].forEach(p => {
+    const calls = Number(usage?.[p]?.apiCalls) || 0;
+    if (calls > 0) stored[p] += calls;
+  });
+  localStorage.setItem(key, JSON.stringify(stored));
+
+  const avLimit = 25;
+  const tdLimit = 800;
+  const avRemaining = Math.max(0, avLimit - stored.alphavantage);
+  const tdRemaining = Math.max(0, tdLimit - stored.twelvedata);
   const minuteLeft = usage?.twelvedata?.minuteCreditsLeft;
+
   el.innerHTML =
-    "<div><b>Twelve Data:</b> ~" + remaining + " дневни кредита оставащи (локална оценка)</div>" +
-    "<div><b>Twelve Data:</b> " + (Number.isFinite(minuteLeft) ? minuteLeft : "—") + " кредита за текущата минута</div>" +
-    "<div><b>Alpha Vantage:</b> остатъкът не се отчита надеждно от API</div>" +
-    "<div><b>Finnhub:</b> остатъкът не се отчита от този backend</div>";
+    "<div><b>Alpha Vantage:</b> " + avRemaining + " / " + avLimit + " заявки остават <span class='usage-note'>(локална оценка)</span></div>" +
+    "<div class='usage-sub'>Използвани днес през този браузър: " + stored.alphavantage + "</div>" +
+    "<div><b>Twelve Data:</b> " + tdRemaining + " / " + tdLimit + " дневни кредита остават <span class='usage-note'>(локална оценка)</span></div>" +
+    "<div class='usage-sub'>Използвани днес през този браузър: " + stored.twelvedata + " · текущата минута: " + (Number.isFinite(minuteLeft) ? minuteLeft : "—") + "</div>" +
+    "<div><b>Finnhub:</b> " + stored.finnhub + " заявки направени днес през този браузър</div>" +
+    "<div class='usage-sub'>Точен дневен остатък не се изчислява, защото не е зададен надежден дневен free quota от този backend.</div>" +
+    "<div class='usage-note'>⚠️ Броячите са локална оценка и не включват заявки, направени извън този браузър/API ключ.</div>";
 }
 function providerName(source){
   return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
@@ -296,6 +317,7 @@ async function testProvider(provider){
   try{
     const r = await fetch(backend + "/api/test?provider=" + encodeURIComponent(provider) + "&symbol=NVDA",{cache:"no-store"});
     const data = await r.json();
+    updateUsagePanel(data.usage);
     const ok = r.ok && data?.ok;
     result.className = "provider-test-result " + (ok ? "health-ok" : "health-error");
     result.innerHTML =
