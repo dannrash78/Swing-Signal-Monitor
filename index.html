@@ -9,7 +9,7 @@
 <body>
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.3</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.4</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
   <div class="header-actions">
@@ -39,6 +39,12 @@
       <button id="addBtn">+ Добави акция</button>
     </div>
     <div id="cards" class="grid"></div>
+  </section>
+  <section class="hidden-section">
+    <div class="hidden-header">
+      <div><h3>Невидим списък</h3><p class="hint">Скритите акции не се визуализират в основния списък. Оттук можеш да ги върнеш обратно.</p></div>
+    </div>
+    <div id="hiddenList" class="hidden-list"></div>
   </section>
   <section id="healthResult" class="health-result" hidden></section>
   <section class="legend">
