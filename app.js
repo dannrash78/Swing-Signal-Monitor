@@ -406,7 +406,8 @@ function statusCard(x){
     no_data: "⚠️ NO DATA",
     invalid_symbol: "❌ INVALID SYMBOL",
     insufficient_history: "⚠️ INSUFFICIENT HISTORY",
-    error: "⚠️ DATA ERROR"
+    error: "⚠️ DATA ERROR",
+    provider_unavailable: "⚠️ PROVIDER UNAVAILABLE"
   };
   const div=document.createElement("article");
   div.className="card error" + (selected ? " selected" : "");
