@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.9.1
+Version 1.9.2
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -13,7 +13,9 @@ GitHub Pages frontend + Cloudflare Worker backend for informational swing monito
 - Hidden list: X / Скрий hides a stock; Покажи restores it without deleting data.
 - No automatic market-data scan on page load.
 - Manual Update only requests selected stocks.
-- Check Health uses /api/health and does not consume market-data API requests.
+- Check Health uses /api/health, checks backend connectivity to all three provider hosts, and does not call market-data endpoints or consume provider data quota.
+- Each provider has a Test NVDA action that performs one real provider data request and bypasses the market-data cache; the result shows OK, rate limit, error, returned price/date, and API-call count.
+- Failed scans show the provider-by-provider attempts and their actual status/reason when no provider returns valid data.
 - Last successful results are kept locally.
 - Signals use the 60-trading-day high, configurable drawdown levels and optional position target.
 
