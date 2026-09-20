@@ -1,65 +1,57 @@
 # Swing Signal Monitor
 
-Version 1.5
+Version 1.9.1
 
-GitHub Pages frontend + Cloudflare Worker backend.
+GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
-## Purpose
+## Core functionality
 
-Informational swing-monitoring tool for a configurable watchlist.
+- Persistent watchlist with 10 default US stocks.
+- Company name shown next to ticker.
+- Visible stocks grouped by region and alphabetically sorted.
+- Each stock has a persistent Update checkbox.
+- Hidden list: X / Скрий hides a stock; Покажи restores it without deleting data.
+- No automatic market-data scan on page load.
+- Manual Update only requests selected stocks.
+- Check Health uses /api/health and does not consume market-data API requests.
+- Last successful results are kept locally.
+- Signals use the 60-trading-day high, configurable drawdown levels and optional position target.
 
-Current rules:
+## Data providers
 
-- 60-trading-day high
-- drawdown from that high
-- observation levels: -5%, -8%, -10%
-- position target: +10%
-- optional entry prices stored locally in the browser
+The frontend can enable/disable and prioritize:
 
-The interface presents monitoring states, not automatic orders or financial advice.
+1. Alpha Vantage
+2. Twelve Data
+3. Finnhub
 
-## API quota protection
+The Worker tries enabled providers in priority order and falls back when a provider is rate-limited or fails. Successful results are cached for 6 hours. Each result displays its actual source.
 
-The backend uses Alpha Vantage daily data and keeps the API key server-side as a Cloudflare Worker secret.
+## Cloudflare Worker secrets
 
-To reduce free-plan API usage:
+Configure these as Worker secrets, never in frontend files:
 
-- successful symbol results are cached at the Worker for 6 hours;
-- duplicate symbols are removed;
-- scans are limited to 10 symbols;
-- when Alpha Vantage reports a rate limit, the Worker stops making additional upstream requests for the remaining symbols;
-- rate-limit and data errors are reported per symbol;
-- the frontend sends requests only for stocks selected with the Update checkbox;
-- opening or refreshing the page does not call the scan API.
+- `ALPHA_VANTAGE_KEY`
+- `TWELVE_DATA_API_KEY`
+- `FINNHUB_API_KEY` (optional)
 
-## Frontend
+Wrangler example:
 
-- Each watchlist stock has a checkbox controlling whether it is included in the next Update.
-- The selected stock list is saved in browser local storage and restored when the page is reopened.
-- Update requests only the selected symbols.
-- Check Health calls <Backend URL>/api/health and displays the HTTP status and returned result. It does not call Alpha Vantage.
-- Last received symbol results are kept locally so reopening the page does not require a new API request.
+```bash
+npx wrangler secret put ALPHA_VANTAGE_KEY
+npx wrangler secret put TWELVE_DATA_API_KEY
+npx wrangler secret put FINNHUB_API_KEY
+npx wrangler deploy
+```
 
-## Backend
+## Quota display
 
-The Worker is configured in backend/wrangler.toml.
+Twelve Data usage is shown in the frontend:
+- local estimate of remaining daily credits, based on requests made through this browser;
+- current-minute remaining credits when returned by the provider.
 
-Required runtime secret:
-
-ALPHA_VANTAGE_KEY
-
-Do not put the Alpha Vantage key in frontend files or commit it to GitHub.
+The daily browser value is an estimate, not an account-wide authoritative counter. Alpha Vantage and Finnhub remaining quotas are not presented as exact values unless the provider supplies reliable information.
 
 ## Important
 
-The free Alpha Vantage plan has request limits. The cache reduces repeated requests but does not increase the provider's daily allowance.
-
-## Version 1.5
-
-- Selective API requests per stock.
-- Persistent stock-selection checkboxes.
-- No automatic scan on page load.
-- Manual Update button.
-- Manual Check Health button.
-- Health result shows URL, HTTP status and response.
-- Last received results are stored locally.
+API keys remain server-side in Cloudflare Worker. The frontend sends only provider names/priorities, never secrets.
