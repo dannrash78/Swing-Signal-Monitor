@@ -1,5 +1,17 @@
 const DEFAULTS = {
   symbols: ["NVDA","AMD","MU","AVGO","TSLA","AAPL","AMZN","META","MSFT","GOOGL"],
+  companyNames: {
+    NVDA: "NVIDIA Corporation",
+    AMD: "Advanced Micro Devices, Inc.",
+    MU: "Micron Technology, Inc.",
+    AVGO: "Broadcom Inc.",
+    TSLA: "Tesla, Inc.",
+    AAPL: "Apple Inc.",
+    AMZN: "Amazon.com, Inc.",
+    META: "Meta Platforms, Inc.",
+    MSFT: "Microsoft Corporation",
+    GOOGL: "Alphabet Inc."
+  },
   target: 10,
   levels: [5,8,10],
   backend: "https://swing-signal-backend.danniel-rashev.workers.dev"
@@ -158,7 +170,7 @@ function placeholderCard(symbol){
       '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
       '<button class="remove" data-remove="' + escapeHtml(symbol) + '">×</button>' +
     '</div>' +
-    '<div class="symbol">' + escapeHtml(symbol) + '</div>' +
+    '<div class="symbol">' + escapeHtml(symbol) + ' <span class="company-name">' + escapeHtml(companyName(symbol)) + '</span></div>' +
     '<div class="signal">⚪ Няма заредени данни</div>' +
     '<div class="reason">Избери заявка за Update или скрий акцията от основния списък.</div>' +
     '<button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button>';
@@ -333,7 +345,7 @@ function card(x,target,levels){
       '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
       '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
     '</div>' +
-    '<div class="symbol">' + escapeHtml(x.symbol) + '</div>' +
+    '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
     '<div class="price">$' + num(x.price) + '</div>' +
     '<div class="signal">' + signal + '</div>' +
     '<div class="metrics">' +
@@ -380,6 +392,8 @@ function statusCard(x){
 }
 
 const num=x=>Number(x).toFixed(2);
+function companyName(symbol){ return DEFAULTS.companyNames[symbol] || symbol; }
+
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 }
