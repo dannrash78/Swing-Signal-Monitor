@@ -12,6 +12,18 @@ const DEFAULTS = {
     MSFT: "Microsoft Corporation",
     GOOGL: "Alphabet Inc."
   },
+  regions: {
+    AAPL: "Американски",
+    AMD: "Американски",
+    AMZN: "Американски",
+    AVGO: "Американски",
+    GOOGL: "Американски",
+    META: "Американски",
+    MSFT: "Американски",
+    MU: "Американски",
+    NVDA: "Американски",
+    TSLA: "Американски"
+  },
   target: 10,
   levels: [5,8,10],
   backend: "https://swing-signal-backend.danniel-rashev.workers.dev"
@@ -38,6 +50,7 @@ state.hiddenSymbols = Array.isArray(state.hiddenSymbols) ? state.hiddenSymbols.f
 if (!state.symbols.includes("AMD")) state.symbols.splice(1, 0, "AMD");
 if (!state.selectedSymbols.includes("AMD")) state.selectedSymbols.push("AMD");
 state.hiddenSymbols = state.hiddenSymbols.filter(s => s !== "AMD");
+save();
 
 const $ = id => document.getElementById(id);
 $("backendUrl").value = localStorage.getItem("swingBackend") || DEFAULTS.backend;
@@ -130,7 +143,7 @@ function renderHiddenList(){
     list.innerHTML = '<span class="hidden-empty">Няма скрити акции.</span>';
     return;
   }
-  state.hiddenSymbols.forEach(symbol => {
+  state.hiddenSymbols.slice().sort((a,b)=>a.localeCompare(b,"en")).forEach(symbol => {
     const item = document.createElement("div");
     item.className = "hidden-item";
     item.innerHTML = '<span>' + escapeHtml(symbol) + '</span><button type="button" class="show-btn" data-show="' + escapeHtml(symbol) + '">Покажи</button>';
@@ -152,9 +165,24 @@ function renderCards(){
     return;
   }
 
-  state.symbols.filter(symbol => !state.hiddenSymbols.includes(symbol)).forEach(symbol => {
-    const result = results.get(symbol);
-    cards.appendChild(result ? card(result,target,levels) : placeholderCard(symbol));
+  const visibleSymbols = state.symbols
+    .filter(symbol => !state.hiddenSymbols.includes(symbol))
+    .sort((a,b) => {
+      const ra = DEFAULTS.regions[a] || "Други";
+      const rb = DEFAULTS.regions[b] || "Други";
+      return ra.localeCompare(rb, "bg") || a.localeCompare(b, "en");
+    });
+
+  const groups = [...new Set(visibleSymbols.map(symbol => DEFAULTS.regions[symbol] || "Други"))];
+  groups.forEach(region => {
+    const heading = document.createElement("div");
+    heading.className = "region-heading";
+    heading.textContent = region + " акции";
+    cards.appendChild(heading);
+    visibleSymbols.filter(symbol => (DEFAULTS.regions[symbol] || "Други") === region).forEach(symbol => {
+      const result = results.get(symbol);
+      cards.appendChild(result ? card(result,target,levels) : placeholderCard(symbol));
+    });
   });
   renderHiddenList();
   updateHiddenToggle();
@@ -381,7 +409,7 @@ function statusCard(x){
       '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
       '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
     '</div>' +
-    '<div class="symbol">' + escapeHtml(x.symbol) + '</div>' +
+    '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
     '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
     '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
     '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
