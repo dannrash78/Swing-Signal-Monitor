@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.4
+Version 1.5
 
 GitHub Pages frontend + Cloudflare Worker backend.
 
@@ -54,7 +54,7 @@ Do not put the Alpha Vantage key in frontend files or commit it to GitHub.
 
 The free Alpha Vantage plan has request limits. The cache reduces repeated requests but does not increase the provider's daily allowance.
 
-## Version 1.4
+## Version 1.5
 
 - Selective API requests per stock.
 - Persistent stock-selection checkboxes.
