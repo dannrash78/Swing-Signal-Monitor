@@ -153,13 +153,6 @@ async function providerHealth(env) {
   };
 }
 
-function providerHealth(env) {
-  return {
-    alphavantage: { configured: !!env.ALPHA_VANTAGE_KEY },
-    twelvedata: { configured: !!env.TWELVE_DATA_API_KEY },
-    finnhub: { configured: !!env.FINNHUB_API_KEY }
-  };
-}
 
 function isConfigured(provider, env) {
   return provider === "alphavantage" ? !!env.ALPHA_VANTAGE_KEY
