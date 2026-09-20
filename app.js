@@ -316,7 +316,7 @@ async function checkHealth(){
   }
 }
 
-async function showBackendDiagnostic(cards, backend, scanError){
+async async function showBackendDiagnostic(cards, backend, scanError){
   cards.innerHTML = '<div class="card loading">Проверявам състоянието на Backend-а…</div>';
   const healthUrl = backend.replace(/\/$/,"") + "/api/health";
 
@@ -428,6 +428,9 @@ function statusCard(x){
 
 const num=x=>Number(x).toFixed(2);
 function companyName(symbol){ return DEFAULTS.companyNames[symbol] || symbol; }
+function providerName(source){
+  return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
+}
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
