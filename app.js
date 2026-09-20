@@ -26,7 +26,12 @@ const DEFAULTS = {
   },
   target: 10,
   levels: [5,8,10],
-  backend: "https://swing-signal-backend.danniel-rashev.workers.dev"
+  backend: "https://swing-signal-backend.danniel-rashev.workers.dev",
+  providers: {
+    alphavantage: { enabled: true, priority: 1, name: "Alpha Vantage" },
+    twelvedata: { enabled: true, priority: 2, name: "Twelve Data" },
+    finnhub: { enabled: false, priority: 3, name: "Finnhub" }
+  }
 };
 
 let state = JSON.parse(localStorage.getItem("swingState") || "null") || {
@@ -44,6 +49,10 @@ state.selectedSymbols = Array.isArray(state.selectedSymbols)
   : state.symbols.slice();
 state.lastResults = Array.isArray(state.lastResults) ? state.lastResults : [];
 state.hiddenSymbols = Array.isArray(state.hiddenSymbols) ? state.hiddenSymbols.filter(s => state.symbols.includes(s)) : [];
+state.providers = state.providers || {};
+Object.keys(DEFAULTS.providers).forEach(p => {
+  state.providers[p] = { ...DEFAULTS.providers[p], ...(state.providers[p] || {}) };
+});
 
 // One-time migration: restore AMD only if it was actually missing.
 // IMPORTANT: never unhide an existing AMD entry. From this point onward,
@@ -63,10 +72,12 @@ const $ = id => document.getElementById(id);
 $("backendUrl").value = localStorage.getItem("swingBackend") || DEFAULTS.backend;
 $("targetPct").value = DEFAULTS.target;
 $("levels").value = DEFAULTS.levels.join(",");
+renderProviderSettings();
 
 $("saveSettings").onclick = () => {
   const backend = $("backendUrl").value.trim().replace(/\/$/,"");
   localStorage.setItem("swingBackend", backend);
+  saveProviderSettings();
   renderCards();
 };
 
@@ -103,6 +114,61 @@ $("stockForm").onsubmit = e => {
 };
 
 function save(){ localStorage.setItem("swingState", JSON.stringify(state)); }
+
+function renderProviderSettings(){
+  Object.keys(DEFAULTS.providers).forEach(p => {
+    const e = $("provider-" + p + "-enabled");
+    const q = $("provider-" + p + "-priority");
+    if (e) e.checked = !!state.providers[p].enabled;
+    if (q) q.value = String(state.providers[p].priority);
+  });
+  updateUsagePanel();
+}
+function saveProviderSettings(){
+  Object.keys(DEFAULTS.providers).forEach(p => {
+    const e = $("provider-" + p + "-enabled");
+    const q = $("provider-" + p + "-priority");
+    if (e) state.providers[p].enabled = e.checked;
+    if (q) state.providers[p].priority = Number(q.value) || DEFAULTS.providers[p].priority;
+  });
+  save();
+}
+function enabledProviders(){
+  return Object.keys(state.providers)
+    .filter(p => state.providers[p].enabled)
+    .sort((a,b) => state.providers[a].priority - state.providers[b].priority || a.localeCompare(b));
+}
+function updateUsagePanel(usage){
+  const el = $("providerUsage");
+  if (!el) return;
+  const key = "swingTwelveDailyUsage";
+  const today = new Date().toISOString().slice(0,10);
+  const stored = JSON.parse(localStorage.getItem(key) || "null") || {date:today,calls:0};
+  if (stored.date !== today) { stored.date=today; stored.calls=0; }
+  if (usage?.twelvedata?.apiCalls) {
+    stored.calls += Number(usage.twelvedata.apiCalls) || 0;
+    localStorage.setItem(key, JSON.stringify(stored));
+  }
+  const remaining = Math.max(0, 800 - stored.calls);
+  const minuteLeft = usage?.twelvedata?.minuteCreditsLeft;
+  el.innerHTML =
+    "<div><b>Twelve Data:</b> ~" + remaining + " дневни кредита оставащи (локална оценка)</div>" +
+    "<div><b>Twelve Data:</b> " + (Number.isFinite(minuteLeft) ? minuteLeft : "—") + " кредита за текущата минута</div>" +
+    "<div><b>Alpha Vantage:</b> остатъкът не се отчита надеждно от API</div>" +
+    "<div><b>Finnhub:</b> остатъкът не се отчита от този backend</div>";
+}
+function providerName(source){
+  return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
+}
+function renderHealthProviders(providers){
+  const el = $("providerHealth");
+  if (!el) return;
+  el.innerHTML = Object.entries(providers).map(([p,v]) =>
+    '<span class="provider-badge ' + (v.configured ? 'ok' : 'off') + '">' +
+    escapeHtml(DEFAULTS.providers[p]?.name || p) + ": " + (v.configured ? "configured" : "not configured") +
+    "</span>"
+  ).join("");
+}
 
 function updateHiddenToggle(){
   const btn = $("hiddenToggleBtn");
@@ -237,7 +303,9 @@ async function updateSelected(){
   const levels = $("levels").value.split(",").map(Number).filter(x=>x>0);
 
   try{
-    const url = backend + "/api/scan?symbols=" + encodeURIComponent(selected.join(","));
+    const providers = enabledProviders();
+    if (!providers.length) throw new Error("Няма включен data provider.");
+    const url = backend + "/api/scan?symbols=" + encodeURIComponent(selected.join(",")) + "&providers=" + encodeURIComponent(providers.join(","));
     const r = await fetch(url, {cache:"no-store"});
     let data = null;
     try { data = await r.json(); } catch {}
@@ -264,6 +332,7 @@ async function updateSelected(){
     }
 
     if(!data || !Array.isArray(data.results)) throw new Error("Невалиден отговор от backend.");
+    updateUsagePanel(data.usage);
 
     state.lastResults = mergeResults(state.lastResults,data.results);
     save();
@@ -306,7 +375,8 @@ async function checkHealth(){
       "<b>" + (r.ok && data?.ok ? "✅ Backend Health OK" : "❌ Backend Health ERROR") + "</b>" +
       "<p><b>URL:</b> " + escapeHtml(healthUrl) + "</p>" +
       "<p><b>HTTP:</b> " + escapeHtml(String(r.status)) + "</p>" +
-      "<p><b>Резултат:</b> " + escapeHtml(data ? JSON.stringify(data) : (text || "Няма четим отговор.")) + "</p>";
+      "<p><b>Резултат:</b> " + escapeHtml(data ? JSON.stringify(data) : (text || "Няма четим отговор.")) + "</p>" +
+      '<div id="providerHealth"></div>';
   }catch(e){
     result.className = "health-result health-error";
     result.innerHTML =
@@ -316,7 +386,7 @@ async function checkHealth(){
   }
 }
 
-async async function showBackendDiagnostic(cards, backend, scanError){
+async function showBackendDiagnostic(cards, backend, scanError){
   cards.innerHTML = '<div class="card loading">Проверявам състоянието на Backend-а…</div>';
   const healthUrl = backend.replace(/\/$/,"") + "/api/health";
 
@@ -391,7 +461,8 @@ function card(x,target,levels){
     '</div>' +
     (entry ? '<div class="position">Вход: <b>$' + num(entry) + '</b> · P/L: <b>' + ((x.price/entry-1)*100).toFixed(2) + '%</b></div>' : '') +
     '<div class="reason">' + escapeHtml(reason) + '</div>' +
-    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
+    '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
+    '<button type="button" class="hide-btn' data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
 
   div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
   div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
@@ -420,6 +491,7 @@ function statusCard(x){
     '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
     '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
     '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
+    '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
     '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
   div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
   div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
