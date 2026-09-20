@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.9.2
+Version 1.9.3
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
