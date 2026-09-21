@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.10.1
+Version 1.10.2
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -20,6 +20,8 @@ GitHub Pages frontend + Cloudflare Worker backend for informational swing monito
 - Signals use the 60-trading-day high, configurable drawdown levels and optional position target.
 - Multiple entries for the same symbol are stored and evaluated by average entry price.
 - Without a holding, the card also shows the model's next/active entry level based on the configured drawdown thresholds.
+- Position entry uses a dropdown containing only currently visible watchlist stocks.
+- Clearing the holding checkbox for an existing stock clears its open entries without removing the stock from the watchlist.
 
 ## Data providers
 
