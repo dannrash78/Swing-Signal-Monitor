@@ -9,10 +9,17 @@
 <body>
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.9.3</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.10.0</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
   <div class="header-actions">
+    <div class="header-providers" aria-label="Data Sources">
+      <span class="header-providers-title">Data Sources</span>
+      <label class="header-provider"><input id="provider-alphavantage-enabled" type="checkbox"> AV <select id="provider-alphavantage-priority" aria-label="Alpha Vantage priority"><option>1</option><option>2</option><option>3</option></select></label>
+      <label class="header-provider"><input id="provider-twelvedata-enabled" type="checkbox"> TD <select id="provider-twelvedata-priority" aria-label="Twelve Data priority"><option>1</option><option>2</option><option>3</option></select></label>
+      <label class="header-provider"><input id="provider-finnhub-enabled" type="checkbox"> FH <select id="provider-finnhub-priority" aria-label="Finnhub priority"><option>1</option><option>2</option><option>3</option></select></label>
+      <button id="saveProviderHeader" type="button" class="header-save">Save</button>
+    </div>
     <button id="healthBtn" class="secondary">✓ Check Health</button>
     <button id="updateBtn">↻ Update</button>
   </div>
@@ -29,14 +36,7 @@
       <input id="levels" value="5,8,10" aria-label="Нива на спад">
     </label>
     <button id="saveSettings">Запази настройки</button>
-    <div class="provider-settings">
-      <h3>📡 Data Sources</h3>
-      <p class="hint">Включвай/изключвай каналите и подреждай приоритета. При лимит или грешка Worker-ът преминава към следващия включен канал.</p>
-      <div class="provider-row"><label><input id="provider-alphavantage-enabled" type="checkbox"> Alpha Vantage</label><select id="provider-alphavantage-priority"><option>1</option><option>2</option><option>3</option></select><button type="button" class="provider-test" data-provider-test="alphavantage">Test NVDA</button></div>
-      <div class="provider-row"><label><input id="provider-twelvedata-enabled" type="checkbox"> Twelve Data</label><select id="provider-twelvedata-priority"><option>1</option><option>2</option><option>3</option></select><button type="button" class="provider-test" data-provider-test="twelvedata">Test NVDA</button></div>
-      <div class="provider-row"><label><input id="provider-finnhub-enabled" type="checkbox"> Finnhub</label><select id="provider-finnhub-priority"><option>1</option><option>2</option><option>3</option></select><button type="button" class="provider-test" data-provider-test="finnhub">Test NVDA</button></div>
-      <div id="providerUsage" class="provider-usage"></div><div class="usage-legend">Броячът отчита реалните заявки, направени от този инструмент през този браузър. При fallback една акция може да използва повече от една заявка.</div><div id="providerTestResult" class="provider-test-result" hidden></div>
-    </div>
+    <div id="providerTestResult" class="provider-test-result" hidden></div>
   </section>
   <section>
     <div class="toolbar">
@@ -62,6 +62,10 @@
     🔵 EXIT ZONE = при зададена цел за вече отбелязана позиция;
     ⚪ WAIT = няма сигнал.
   </section>
+  <section class="activity-log">
+    <div class="log-header"><div><h3>Activity Log</h3><p class="hint">Записва заявки, резултати и грешки от този браузър.</p></div><div class="log-actions"><button id="exportLog" type="button" class="secondary">Export Log</button><button id="clearLog" type="button" class="secondary">Clear</button></div></div>
+    <div id="activityLog" class="log-list"></div>
+  </section>
 </main>
 <dialog id="stockDialog">
   <form method="dialog" id="stockForm">
@@ -75,6 +79,7 @@
     </menu>
   </form>
 </dialog>
-<script src="app.js?v=1.9.3"></script>
+<footer id="usageFooter"><div id="providerUsage" class="provider-usage"></div><div class="usage-legend">Броячите са локална оценка за заявките, направени през този браузър. Update/Test заявки се нулират в 00:00 местно време. При fallback една акция може да използва повече от една заявка. Twelve Data отчита своята дневна квота по UTC според плана.</div></footer>
+<script src="app.js?v=1.10.0"></script>
 </body>
 </html>
