@@ -26,7 +26,7 @@ const DEFAULTS = {
   },
   target: 10,
   levels: [5,8,10],
-  backend: "https://swing-signal-backend.danniel-rashev.workers.dev",
+  backend: "",
   providers: {
     alphavantage: { enabled: true, priority: 1, name: "Alpha Vantage" },
     twelvedata: { enabled: true, priority: 2, name: "Twelve Data" },
@@ -77,7 +77,7 @@ if (!localStorage.getItem("swingAmdMigrationV2")) {
 }
 
 const $ = id => document.getElementById(id);
-$("backendUrl").value = localStorage.getItem("swingBackend") || DEFAULTS.backend;
+$("backendUrl").value = localStorage.getItem("swingBackend") || "";
 $("targetPct").value = DEFAULTS.target;
 $("levels").value = DEFAULTS.levels.join(",");
 if ($("sortOrder")) $("sortOrder").value = state.sortOrder;
@@ -372,25 +372,45 @@ $("clearLog").onclick = () => {
   renderActivityLog();
 };
 
-function exportLocalData(){
+async function exportLocalData(){
   const payload={
     format:"Swing Signal Monitor local backup",
-    version:"1.14.0",
+    version:"1.15.0",
     exportedAt:new Date().toISOString(),
-    state,
-    backend:$("backendUrl")?.value?.trim() || localStorage.getItem("swingBackend") || DEFAULTS.backend,
+    state:JSON.parse(JSON.stringify(state)),
     targetPct:$("targetPct")?.value || String(DEFAULTS.target),
     levels:$("levels")?.value || DEFAULTS.levels.join(",")
   };
-  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="swing-signal-monitor-backup-" + localUsageDate() + ".json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  logActivity("settings","Local data exported",{version:payload.version});
+  const json=JSON.stringify(payload,null,2);
+  const fileName="swing-signal-monitor-backup-" + localUsageDate() + ".json";
+
+  try{
+    if("showSaveFilePicker" in window){
+      const handle=await window.showSaveFilePicker({
+        suggestedName:fileName,
+        types:[{
+          description:"Swing Signal Monitor backup",
+          accept:{"application/json":[".json"]}
+        }]
+      });
+      const writable=await handle.createWritable();
+      await writable.write(json);
+      await writable.close();
+    }else{
+      const blob=new Blob([json],{type:"application/json;charset=utf-8"});
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);
+      a.download=fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    }
+    logActivity("settings","Local data exported",{version:payload.version,fileName});
+  }catch(err){
+    if(err?.name==="AbortError") return;
+    throw err;
+  }
 }
 
 function normalizeLoadedState(raw){
@@ -431,8 +451,8 @@ async function importLocalData(file){
   if(!confirm("Зареди записаните Watchlist, позиции и настройки? Текущите локални данни ще бъдат заменени.")) return;
 
   state=loadedState;
-  const backend=String(payload.backend || DEFAULTS.backend).replace(/\/$/,"");
-  localStorage.setItem("swingBackend",backend);
+  // Backend URL is intentionally NOT imported: every user must configure their own backend.
+  const backend=localStorage.getItem("swingBackend") || "";
   $("backendUrl").value=backend;
   $("targetPct").value=String(payload.targetPct ?? DEFAULTS.target);
   $("levels").value=String(payload.levels ?? DEFAULTS.levels.join(","));
@@ -443,8 +463,39 @@ async function importLocalData(file){
   logActivity("settings","Local data imported",{sourceVersion:payload.version || "unknown"});
 }
 
-$("saveDataBtn").onclick=exportLocalData;
-$("loadDataBtn").onclick=() => $("loadDataFile").click();
+async function chooseAndImportLocalData(){
+  try{
+    if("showOpenFilePicker" in window){
+      const handles=await window.showOpenFilePicker({
+        multiple:false,
+        types:[{
+          description:"Swing Signal Monitor backup",
+          accept:{"application/json":[".json"]}
+        }]
+      });
+      if(handles?.[0]){
+        const file=await handles[0].getFile();
+        await importLocalData(file);
+      }
+    }else{
+      $("loadDataFile").click();
+    }
+  }catch(err){
+    if(err?.name==="AbortError") return;
+    alert(err.message || "Неуспешно зареждане на backup.");
+    logActivity("error","Local data import failed",{error:err.message || "Unknown error"},"error");
+  }
+}
+
+
+$("saveDataBtn").onclick=async () => {
+  try{ await exportLocalData(); }
+  catch(err){
+    alert(err.message || "Неуспешно записване на backup.");
+    logActivity("error","Local data export failed",{error:err.message || "Unknown error"},"error");
+  }
+};
+$("loadDataBtn").onclick=chooseAndImportLocalData;
 $("loadDataFile").onchange=async e=>{
   try{ await importLocalData(e.target.files?.[0]); }
   catch(err){
