@@ -9,7 +9,7 @@
 <body>
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.11.0</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.12.0</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
   <div class="header-actions">
@@ -40,28 +40,32 @@
   </section>
   <section>
     <div class="toolbar">
-      <div>
-        <h2>Watchlist</h2>
+      <div class="watchlist-title">
+        <div class="watchlist-heading-line">
+          <h2>Watchlist</h2>
+          <div class="watchlist-controls" aria-label="Watchlist управление">
+            <label class="master-select"><input id="selectAllUpdates" type="checkbox"> Всички за Update</label>
+            <label>Подреди:
+              <select id="sortOrder">
+                <option value="alpha">Азбучен ред (A → Z)</option>
+                <option value="signal">Сигнал (ENTRY най-отгоре)</option>
+                <option value="priceDesc">Price (висока → ниска)</option>
+                <option value="priceAsc">Price (ниска → висока)</option>
+              </select>
+            </label>
+            <label>Изглед:
+              <select id="viewMode">
+                <option value="cards">Карти</option>
+                <option value="table">Таблица</option>
+              </select>
+            </label>
+          </div>
+        </div>
         <p class="hint">Избери за кои акции да се направи заявка при <b>Update</b>. Изборът се запазва.</p>
       </div>
       <div class="toolbar-actions"><button id="hiddenToggleBtn" class="secondary">Невидим списък (0)</button><button id="addBtn">+ Въведи позиция</button></div>
     </div>
     <div id="cards" class="grid"></div>
-    <div class="watchlist-controls" aria-label="Watchlist подреждане и изглед">
-      <label>Подреди:
-        <select id="sortOrder">
-          <option value="alpha">Азбучен ред (A → Z)</option>
-          <option value="priceDesc">Price (висока → ниска)</option>
-          <option value="priceAsc">Price (ниска → висока)</option>
-        </select>
-      </label>
-      <label>Изглед:
-        <select id="viewMode">
-          <option value="cards">Карти</option>
-          <option value="table">Таблица</option>
-        </select>
-      </label>
-    </div>
   </section>
   <section class="hidden-section" hidden>
     <div class="hidden-header">
@@ -95,6 +99,6 @@
   </form>
 </dialog>
 <footer id="usageFooter"><div id="providerUsage" class="provider-usage"></div><div class="usage-legend">Броячите са локална оценка за заявките, направени през този браузър. Update/Test заявки се нулират в 00:00 местно време. При fallback една акция може да използва повече от една заявка. Twelve Data отчита своята дневна квота по UTC според плана.</div></footer>
-<script src="app.js?v=1.11.0"></script>
+<script src="app.js?v=1.12.0"></script>
 </body>
 </html>
