@@ -104,8 +104,27 @@ $("hiddenToggleBtn").onclick = () => {
   updateHiddenToggle();
 };
 
+function populatePositionSymbols(){
+  const select = $("symbol");
+  if (!select) return;
+  const visible = state.symbols
+    .filter(s => !state.hiddenSymbols.includes(s))
+    .sort((a,b) => a.localeCompare(b,"en"));
+  select.innerHTML = visible.map(s =>
+    '<option value="' + escapeHtml(s) + '">' +
+      escapeHtml(s) + ' — ' + escapeHtml(companyName(s)) +
+    '</option>'
+  ).join("");
+  return visible;
+}
+
 $("addBtn").onclick = () => {
-  $("symbol").value = "";
+  const visible = populatePositionSymbols();
+  if (!visible || !visible.length) {
+    alert("Няма видими акции, за които да се въведе позиция.");
+    return;
+  }
+  $("symbol").value = visible[0];
   $("holding").checked = false;
   $("entryPrice").value = "";
   $("entryPrice").disabled = true;
@@ -117,7 +136,8 @@ $("cancelStock").onclick = () => $("stockDialog").close();
 $("stockForm").onsubmit = e => {
   e.preventDefault();
   const s = $("symbol").value.trim().toUpperCase();
-  if (!/^[A-Z.]{1,8}$/.test(s)) return alert("Въведи валиден ticker.");
+  const visibleSymbols = state.symbols.filter(x => !state.hiddenSymbols.includes(x));
+  if (!visibleSymbols.includes(s)) return alert("Избери акция от видимия списък.");
   if (!state.symbols.includes(s)) state.symbols.push(s);
   if (!state.selectedSymbols.includes(s)) state.selectedSymbols.push(s);
   if ($("holding").checked && Number($("entryPrice").value) > 0) {
@@ -129,7 +149,7 @@ $("stockForm").onsubmit = e => {
   }
   save();
   $("stockDialog").close();
-  logActivity("settings", "Stock added/updated", {symbol:s, holding:$("holding").checked});
+  logActivity("settings", $("holding").checked ? "Position added/updated" : "Position cleared / sold", {symbol:s, holding:$("holding").checked});
   renderCards();
 };
 
