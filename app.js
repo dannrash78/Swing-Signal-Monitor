@@ -1,3 +1,181 @@
+/* Local browser login gate.
+   This is UI-level protection only: GitHub Pages source/assets remain public.
+   Lock persists in localStorage until the site's local data is deleted. */
+const AUTH_CONFIG_KEY = "swingLocalAuthConfig";
+const AUTH_LOCK_KEY = "swingLocalAuthLock";
+const AUTH_SESSION_KEY = "swingLocalAuthSession";
+
+function bytesToB64(bytes){
+  let binary="";
+  for(const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary);
+}
+function b64ToBytes(value){
+  const binary=atob(value);
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+  return bytes;
+}
+async function passwordVerifier(password,saltB64){
+  const enc=new TextEncoder();
+  const baseKey=await crypto.subtle.importKey(
+    "raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]
+  );
+  const bits=await crypto.subtle.deriveBits(
+    {name:"PBKDF2",salt:b64ToBytes(saltB64),iterations:120000,hash:"SHA-256"},
+    baseKey, 256
+  );
+  return bytesToB64(new Uint8Array(bits));
+}
+function authConfig(){
+  try { return JSON.parse(localStorage.getItem(AUTH_CONFIG_KEY) || "null"); }
+  catch { return null; }
+}
+function authLock(){
+  try { return JSON.parse(localStorage.getItem(AUTH_LOCK_KEY) || "null"); }
+  catch { return null; }
+}
+function setAuthLock(){
+  const value={locked:true,lockedAt:new Date().toISOString()};
+  localStorage.setItem(AUTH_LOCK_KEY,JSON.stringify(value));
+}
+function clearAuthSession(){
+  sessionStorage.removeItem(AUTH_SESSION_KEY);
+}
+function setAuthSession(){
+  sessionStorage.setItem(AUTH_SESSION_KEY,"1");
+}
+function isAuthSession(){
+  return sessionStorage.getItem(AUTH_SESSION_KEY)==="1";
+}
+function showAuthMode(mode){
+  const msg=document.getElementById("authMessage");
+  const confirmWrap=document.getElementById("authConfirmWrap");
+  const submit=document.getElementById("authSubmit");
+  const user=document.getElementById("authUsername");
+  const pass=document.getElementById("authPassword");
+  const confirm=document.getElementById("authPasswordConfirm");
+  const lockMsg=document.getElementById("authLockMessage");
+
+  if(mode==="setup"){
+    msg.textContent="При първото стартиране създай потребителско име и парола.";
+    confirmWrap.hidden=false;
+    confirm.required=true;
+    submit.textContent="Създай достъп";
+    user.autocomplete="username";
+    pass.autocomplete="new-password";
+    lockMsg.hidden=true;
+  }else if(mode==="locked"){
+    msg.textContent="Достъпът е заключен след 3 грешни опита.";
+    confirmWrap.hidden=true;
+    confirm.required=false;
+    submit.disabled=true;
+    user.disabled=true;
+    pass.disabled=true;
+    lockMsg.hidden=false;
+    lockMsg.textContent="За отключване трябва да изтриеш локалните данни на този сайт (Local Storage / Site Data). Няма бутон за нулиране.";
+  }else{
+    msg.textContent="Въведи потребителското име и паролата.";
+    confirmWrap.hidden=true;
+    confirm.required=false;
+    submit.disabled=false;
+    user.disabled=false;
+    pass.disabled=false;
+    submit.textContent="Вход";
+    user.autocomplete="username";
+    pass.autocomplete="current-password";
+    lockMsg.hidden=true;
+  }
+  pass.value="";
+  if(confirm) confirm.value="";
+}
+async function initAuthGate(){
+  const gate=document.getElementById("authGate");
+  const form=document.getElementById("authForm");
+  if(!gate || !form) return;
+
+  if(isAuthSession()){
+    gate.hidden=true;
+    return;
+  }
+
+  const locked=authLock()?.locked;
+  if(locked){
+    showAuthMode("locked");
+    gate.hidden=false;
+    return;
+  }
+
+  const existing=authConfig();
+  showAuthMode(existing ? "login" : "setup");
+  gate.hidden=false;
+
+  form.onsubmit=async e=>{
+    e.preventDefault();
+
+    const username=document.getElementById("authUsername").value.trim();
+    const password=document.getElementById("authPassword").value;
+    const confirm=document.getElementById("authPasswordConfirm").value;
+    const config=authConfig();
+
+    if(!username || !password) return;
+
+    if(!config){
+      if(password.length < 8){
+        document.getElementById("authMessage").textContent="Паролата трябва да е поне 8 символа.";
+        return;
+      }
+      if(password !== confirm){
+        document.getElementById("authMessage").textContent="Двете пароли не съвпадат.";
+        return;
+      }
+      const salt=crypto.getRandomValues(new Uint8Array(16));
+      const saltB64=bytesToB64(salt);
+      const verifier=await passwordVerifier(password,saltB64);
+      localStorage.setItem(AUTH_CONFIG_KEY,JSON.stringify({
+        username,salt:saltB64,verifier
+      }));
+      localStorage.removeItem(AUTH_LOCK_KEY);
+      setAuthSession();
+      document.getElementById("authUsername").value="";
+      gate.hidden=true;
+      return;
+    }
+
+    if(username !== config.username){
+      const current=Number(JSON.parse(localStorage.getItem(AUTH_LOCK_KEY) || '{"failed":0}').failed)||0;
+      const failed=current+1;
+      if(failed>=3){
+        setAuthLock();
+        showAuthMode("locked");
+      }else{
+        localStorage.setItem(AUTH_LOCK_KEY,JSON.stringify({failed}));
+        document.getElementById("authMessage").textContent="Грешни данни. Оставащи опити: " + (3-failed) + ".";
+      }
+      return;
+    }
+
+    const verifier=await passwordVerifier(password,config.salt);
+    if(verifier !== config.verifier){
+      const current=Number(JSON.parse(localStorage.getItem(AUTH_LOCK_KEY) || '{"failed":0}').failed)||0;
+      const failed=current+1;
+      if(failed>=3){
+        setAuthLock();
+        showAuthMode("locked");
+      }else{
+        localStorage.setItem(AUTH_LOCK_KEY,JSON.stringify({failed}));
+        document.getElementById("authMessage").textContent="Грешна парола. Оставащи опити: " + (3-failed) + ".";
+      }
+      return;
+    }
+
+    localStorage.removeItem(AUTH_LOCK_KEY);
+    setAuthSession();
+    document.getElementById("authUsername").value="";
+    document.getElementById("authPassword").value="";
+    gate.hidden=true;
+  };
+}
 const DEFAULTS = {
   symbols: ["NVDA","AMD","MU","AVGO","TSLA","AAPL","AMZN","META","MSFT","GOOGL"],
   companyNames: {
@@ -882,3 +1060,4 @@ function escapeHtml(s){
 }
 
 renderCards();
+initAuthGate();
