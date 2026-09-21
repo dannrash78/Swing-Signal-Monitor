@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.13.0
+Version 1.14.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -106,9 +106,10 @@ After deployment use **Check Health** and then the provider's **Test NVDA** butt
 - Table rows have borders and alternating background shades; signal highlighting remains green/yellow where applicable.
 
 
-## v1.13.0 local access gate
-The frontend now has a local browser login gate:
-- First launch asks the user to create a username and password.
-- Password verification uses a salted PBKDF2-SHA-256 verifier stored locally.
-- Three failed login attempts permanently lock the gate for that browser profile until the site's local data is cleared.
-- The login is UI-level protection only; GitHub Pages source/assets are still publicly accessible.
+
+
+## v1.14.0 local backup
+- Removed the browser-local login gate.
+- Added **Save Data** and **Load Data** buttons to the header.
+- The JSON backup contains the local watchlist state, positions, selected stocks, hidden stocks, provider settings, sort/view choices, backend URL, target and drawdown levels.
+- Activity Log and provider usage counters are intentionally not replaced by a backup load.
