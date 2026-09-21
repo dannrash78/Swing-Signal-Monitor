@@ -39,7 +39,9 @@ let state = JSON.parse(localStorage.getItem("swingState") || "null") || {
   positions: {},
   selectedSymbols: DEFAULTS.symbols.slice(),
   lastResults: [],
-  hiddenSymbols: []
+  hiddenSymbols: [],
+  sortOrder: "alpha",
+  viewMode: "cards"
 };
 
 state.symbols = Array.isArray(state.symbols) ? state.symbols : DEFAULTS.symbols.slice();
@@ -53,6 +55,8 @@ state.selectedSymbols = Array.isArray(state.selectedSymbols)
   : state.symbols.slice();
 state.lastResults = Array.isArray(state.lastResults) ? state.lastResults : [];
 state.hiddenSymbols = Array.isArray(state.hiddenSymbols) ? state.hiddenSymbols.filter(s => state.symbols.includes(s)) : [];
+state.sortOrder = ["alpha","priceDesc","priceAsc"].includes(state.sortOrder) ? state.sortOrder : "alpha";
+state.viewMode = state.viewMode === "table" ? "table" : "cards";
 state.providers = state.providers || {};
 Object.keys(DEFAULTS.providers).forEach(p => {
   state.providers[p] = { ...DEFAULTS.providers[p], ...(state.providers[p] || {}) };
@@ -76,6 +80,20 @@ const $ = id => document.getElementById(id);
 $("backendUrl").value = localStorage.getItem("swingBackend") || DEFAULTS.backend;
 $("targetPct").value = DEFAULTS.target;
 $("levels").value = DEFAULTS.levels.join(",");
+if ($("sortOrder")) $("sortOrder").value = state.sortOrder;
+if ($("viewMode")) $("viewMode").value = state.viewMode;
+if ($("sortOrder")) $("sortOrder").onchange = e => {
+  state.sortOrder = e.target.value;
+  save();
+  logActivity("settings", "Watchlist sort changed", {sortOrder:state.sortOrder});
+  renderCards();
+};
+if ($("viewMode")) $("viewMode").onchange = e => {
+  state.viewMode = e.target.value === "table" ? "table" : "cards";
+  save();
+  logActivity("settings", "Watchlist view changed", {viewMode:state.viewMode});
+  renderCards();
+};
 renderProviderSettings();
 renderActivityLog();
 scheduleUsageReset();
@@ -341,41 +359,182 @@ $("clearLog").onclick = () => {
   localStorage.removeItem("swingActivityLog");
   renderActivityLog();
 };
+function getVisibleSymbols(results){
+  const visible = state.symbols.filter(symbol => !state.hiddenSymbols.includes(symbol));
+  return visible.sort((a,b) => {
+    if (state.sortOrder === "priceAsc" || state.sortOrder === "priceDesc") {
+      const pa = Number(results.get(a)?.price);
+      const pb = Number(results.get(b)?.price);
+      const aValid = Number.isFinite(pa);
+      const bValid = Number.isFinite(pb);
+      if (!aValid && !bValid) return a.localeCompare(b,"en");
+      if (!aValid) return 1;
+      if (!bValid) return -1;
+      if (pa !== pb) return state.sortOrder === "priceAsc" ? pa - pb : pb - pa;
+    }
+    return a.localeCompare(b,"en");
+  });
+}
+
+function renderWatchlistControls(){
+  if ($("sortOrder")) $("sortOrder").value = state.sortOrder;
+  if ($("viewMode")) $("viewMode").value = state.viewMode;
+}
+
 function renderCards(){
   const cards = $("cards");
   const target = Number($("targetPct").value) || 10;
   const levels = $("levels").value.split(",").map(Number).filter(x=>x>0);
   const results = new Map(state.lastResults.map(x=>[x.symbol,x]));
-
   cards.innerHTML = "";
 
   if (!state.symbols.length) {
     cards.innerHTML = '<div class="card"><b>Watchlist е празен.</b><p>Добави акция, за да започнеш.</p></div>';
+    renderWatchlistControls();
+    renderHiddenList();
+    updateHiddenToggle();
     return;
   }
 
-  const visibleSymbols = state.symbols
-    .filter(symbol => !state.hiddenSymbols.includes(symbol))
-    .sort((a,b) => {
-      const ra = DEFAULTS.regions[a] || "Други";
-      const rb = DEFAULTS.regions[b] || "Други";
-      return ra.localeCompare(rb, "bg") || a.localeCompare(b, "en");
-    });
-
-  const groups = [...new Set(visibleSymbols.map(symbol => DEFAULTS.regions[symbol] || "Други"))];
-  groups.forEach(region => {
-    const heading = document.createElement("div");
-    heading.className = "region-heading";
-    heading.textContent = region + " акции";
-    cards.appendChild(heading);
-    visibleSymbols.filter(symbol => (DEFAULTS.regions[symbol] || "Други") === region).forEach(symbol => {
+  const visibleSymbols = getVisibleSymbols(results);
+  if (state.viewMode === "table") {
+    renderTableView(cards, visibleSymbols, results, target, levels);
+  } else {
+    visibleSymbols.forEach(symbol => {
       const result = results.get(symbol);
       cards.appendChild(result ? card(result,target,levels) : placeholderCard(symbol));
     });
-  });
+  }
+
+  renderWatchlistControls();
   renderHiddenList();
   updateHiddenToggle();
 }
+
+function renderTableView(container, symbols, results, target, levels){
+  const wrap=document.createElement("div");
+  wrap.className="table-wrap";
+
+  const table=document.createElement("table");
+  table.className="watchlist-table";
+  table.innerHTML =
+    '<thead><tr>' +
+      '<th>Update</th><th>Акция</th><th>Price</th><th>Сигнал</th><th>60d high</th>' +
+      '<th>От връха</th><th>Ден</th><th>Обновено</th><th>Позиция</th><th>Data</th><th></th>' +
+    '</tr></thead>';
+  const tbody=document.createElement("tbody");
+
+  symbols.forEach(symbol => {
+    const x=results.get(symbol);
+    if (x && x.status && x.status !== "ok") {
+      const row=document.createElement("tr");
+      row.className="table-row error";
+      row.innerHTML =
+        '<td>' + checkboxHtml(symbol) + '</td>' +
+        '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
+        '<td>—</td>' +
+        '<td><b>' + escapeHtml(statusLabel(x.status)) + '</b></td>' +
+        '<td colspan="5">' + escapeHtml(x.error || "Няма данни.") + '</td>' +
+        '<td>' + escapeHtml(providerName(x.source)) + '</td>' +
+        '<td><button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button></td>';
+      bindTableRow(row,symbol);
+      tbody.appendChild(row);
+      return;
+    }
+
+    if (!x) {
+      const row=document.createElement("tr");
+      row.className="table-row";
+      row.innerHTML =
+        '<td>' + checkboxHtml(symbol) + '</td>' +
+        '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
+        '<td colspan="8">Няма заредени данни</td>' +
+        '<td><button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button></td>';
+      bindTableRow(row,symbol);
+      tbody.appendChild(row);
+      return;
+    }
+
+    const rendered = tableSignalState(x,target,levels);
+    const entries=positionEntries(x.symbol);
+    let positionText="—";
+    if(entries.length){
+      const avg=entries.reduce((sum,v)=>sum+v,0)/entries.length;
+      const pnl=(x.price/avg-1)*100;
+      positionText='Входове: ' + entries.length + ' · avg $' + num(avg) + ' · P/L ' + pnl.toFixed(2) + '%';
+    } else {
+      const sortedLevels=levels.slice().sort((a,b)=>a-b);
+      if(sortedLevels.length){
+        const reached=sortedLevels.filter(l => x.drawdownPct <= -l).pop();
+        const next=sortedLevels.find(l => x.drawdownPct > -l);
+        const planLevel=reached || next || sortedLevels[sortedLevels.length-1];
+        const planPrice=x.high60*(1-planLevel/100);
+        positionText='Предполагаем вход: $' + num(planPrice) + ' · -' + planLevel + '%';
+      }
+    }
+
+    const row=document.createElement("tr");
+    row.className="table-row " + rendered.cls;
+    row.innerHTML =
+      '<td>' + checkboxHtml(symbol) + '</td>' +
+      '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
+      '<td><b>$' + num(x.price) + '</b></td>' +
+      '<td><b>' + rendered.signal + '</b></td>' +
+      '<td>$' + num(x.high60) + '</td>' +
+      '<td>' + Number(x.drawdownPct).toFixed(2) + '%</td>' +
+      '<td>' + (x.changePct>=0?"+":"") + Number(x.changePct).toFixed(2) + '%</td>' +
+      '<td>' + escapeHtml(x.date || "—") + '</td>' +
+      '<td>' + escapeHtml(positionText) + '</td>' +
+      '<td>' + escapeHtml(providerName(x.source)) + '</td>' +
+      '<td><button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button></td>';
+    bindTableRow(row,symbol);
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  container.appendChild(wrap);
+}
+
+function checkboxHtml(symbol){
+  const selected=state.selectedSymbols.includes(symbol);
+  return '<label class="table-selection"><input type="checkbox" data-select="' + escapeHtml(symbol) + '"' + (selected ? " checked" : "") + '></label>';
+}
+
+function bindTableRow(row,symbol){
+  const select=row.querySelector("[data-select]");
+  const hide=row.querySelector("[data-hide]");
+  if(select) select.onchange=e=>setSelected(symbol,e.target.checked);
+  if(hide) hide.onclick=()=>hideStock(symbol);
+  row.classList.toggle("selected", state.selectedSymbols.includes(symbol));
+}
+
+function statusLabel(status){
+  return ({
+    rate_limited: "⚠️ API LIMIT",
+    no_data: "⚠️ NO DATA",
+    invalid_symbol: "❌ INVALID SYMBOL",
+    insufficient_history: "⚠️ INSUFFICIENT HISTORY",
+    error: "⚠️ DATA ERROR",
+    provider_unavailable: "⚠️ PROVIDER UNAVAILABLE"
+  })[status] || "⚠️ DATA ERROR";
+}
+
+function tableSignalState(x,target,levels){
+  const entries=positionEntries(x.symbol);
+  if(entries.length){
+    const avgEntry=entries.reduce((sum,v)=>sum+v,0)/entries.length;
+    const pnl=(x.price/avgEntry-1)*100;
+    if(pnl >= target) return {cls:"exit",signal:"🔵 EXIT ZONE"};
+    return {cls:"watch",signal:"🟡 HOLD / WATCH"};
+  }
+  const dd=x.drawdownPct;
+  const sortedLevels=levels.slice().sort((a,b)=>a-b);
+  const reached=sortedLevels.filter(l => dd <= -l).pop();
+  if(reached) return {cls:"entry",signal:"🟢 ENTRY ZONE"};
+  return {cls:"wait",signal:"⚪ WAIT"};
+}
+
 
 function placeholderCard(symbol){
   const selected = state.selectedSymbols.includes(symbol);
