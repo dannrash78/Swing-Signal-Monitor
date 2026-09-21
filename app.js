@@ -200,14 +200,17 @@ function providerName(source){
   return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
 }
 function renderHealthProviders(providers){
-
   const el = $("providerHealth");
   if (!el) return;
   el.innerHTML = Object.entries(providers).map(([p,v]) =>
-    '<span class="provider-badge ' + (v.configured ? 'ok' : 'off') + '">' +
+    '<div class="health-provider-row"><span class="provider-badge ' + (v.configured ? 'ok' : 'off') + '">' +
     escapeHtml(DEFAULTS.providers[p]?.name || p) + ": " + (v.configured ? "configured" : "not configured") +
-    "</span>"
+    (v.network ? " · HTTP " + escapeHtml(String(v.network.httpStatus ?? "—")) + " · " + escapeHtml(String(v.network.latencyMs ?? "—")) + " ms" : "") +
+    '</span><button type="button" class="provider-test health-test" data-provider-test="' + escapeHtml(p) + '">Test NVDA</button></div>'
   ).join("");
+  el.querySelectorAll("[data-provider-test]").forEach(btn => {
+    btn.onclick = () => testProvider(btn.dataset.providerTest);
+  });
 }
 
 function updateHiddenToggle(){
