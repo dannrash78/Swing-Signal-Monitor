@@ -7,9 +7,29 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="authGate" class="auth-gate" aria-modal="true" role="dialog">
+  <div class="auth-panel">
+    <div class="auth-title">🔐 Личен достъп</div>
+    <p id="authMessage" class="auth-message"></p>
+    <form id="authForm">
+      <label>Потребител
+        <input id="authUsername" type="text" autocomplete="username" required>
+      </label>
+      <label>Парола
+        <input id="authPassword" type="password" autocomplete="current-password" required>
+      </label>
+      <label id="authConfirmWrap" hidden>Повтори паролата
+        <input id="authPasswordConfirm" type="password" autocomplete="new-password">
+      </label>
+      <button id="authSubmit" type="submit">Вход</button>
+    </form>
+    <p id="authLockMessage" class="auth-lock-message" hidden></p>
+    <p class="auth-security-note">Тази защита е локална за този браузър. Тя не скрива публично достъпния код на GitHub Pages.</p>
+  </div>
+</div>
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.12.0</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.13.0</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
   <div class="header-actions">
