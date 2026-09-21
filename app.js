@@ -558,7 +558,7 @@ function card(x,target,levels){
   let cls="wait", signal="⚪ WAIT", reason="", plan="";
   const dd=x.drawdownPct;
   const sortedLevels=levels.slice().sort((a,b)=>a-b);
-  const reached=sortedLevels.find(l => dd <= -l);
+  const reached=sortedLevels.filter(l => dd <= -l).pop();
   const next=sortedLevels.find(l => dd > -l);
 
   if(entries.length){
