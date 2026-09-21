@@ -106,7 +106,7 @@ $("hiddenToggleBtn").onclick = () => {
 
 function populatePositionSymbols(){
   const select = $("symbol");
-  if (!select) return;
+  if (!select) return [];
   const visible = state.symbols
     .filter(s => !state.hiddenSymbols.includes(s))
     .sort((a,b) => a.localeCompare(b,"en"));
@@ -120,7 +120,7 @@ function populatePositionSymbols(){
 
 $("addBtn").onclick = () => {
   const visible = populatePositionSymbols();
-  if (!visible || !visible.length) {
+  if (!visible.length) {
     alert("Няма видими акции, за които да се въведе позиция.");
     return;
   }
@@ -138,8 +138,6 @@ $("stockForm").onsubmit = e => {
   const s = $("symbol").value.trim().toUpperCase();
   const visibleSymbols = state.symbols.filter(x => !state.hiddenSymbols.includes(x));
   if (!visibleSymbols.includes(s)) return alert("Избери акция от видимия списък.");
-  if (!state.symbols.includes(s)) state.symbols.push(s);
-  if (!state.selectedSymbols.includes(s)) state.selectedSymbols.push(s);
   if ($("holding").checked && Number($("entryPrice").value) > 0) {
     const entries = Array.isArray(state.positions[s]) ? state.positions[s] : [];
     entries.push(Number($("entryPrice").value));
@@ -582,8 +580,8 @@ function card(x,target,levels){
   const next=sortedLevels.find(l => dd > -l);
 
   if(entries.length){
-    const entry=entries.reduce((sum,v)=>sum+v,0)/entries.length;
-    const pnl=(x.price/entry-1)*100;
+    const avgEntry=entries.reduce((sum,v)=>sum+v,0)/entries.length;
+    const pnl=(x.price/avgEntry-1)*100;
     if(pnl >= target){
       cls="exit"; signal="🔵 EXIT ZONE";
       reason="Позицията е на " + pnl.toFixed(2) + "% спрямо средния вход. Целта +" + target + "% е достигната.";
@@ -599,54 +597,10 @@ function card(x,target,levels){
     reason=next ? "Следващо наблюдавано ниво: -" + next + "%." : "Няма активен входен сигнал.";
   }
 
-  // Always show the model's next entry level even when there is no holding.
   if(!entries.length && sortedLevels.length){
     const planLevel = reached || next || sortedLevels[sortedLevels.length-1];
     const planPrice = x.high60 * (1 - planLevel / 100);
-    plan = '<div class="position">Предполагаем вход: <b>
-
-function statusCard(x){
-  const selected = state.selectedSymbols.includes(x.symbol);
-  const labels = {
-    rate_limited: "⚠️ API LIMIT",
-    no_data: "⚠️ NO DATA",
-    invalid_symbol: "❌ INVALID SYMBOL",
-    insufficient_history: "⚠️ INSUFFICIENT HISTORY",
-    error: "⚠️ DATA ERROR",
-    provider_unavailable: "⚠️ PROVIDER UNAVAILABLE"
-  };
-  const div=document.createElement("article");
-  div.className="card error" + (selected ? " selected" : "");
-  div.dataset.symbolCard = x.symbol;
-  div.innerHTML =
-    '<div class="top">' +
-      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
-      '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
-    '</div>' +
-    '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
-    '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
-    '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
-    (Array.isArray(x.attempts) ? '<div class="provider-attempts">' + x.attempts.map(a => '<div><b>' + escapeHtml(providerName(a.provider)) + ':</b> ' + escapeHtml(a.status) + (a.message ? ' — ' + escapeHtml(a.message) : '') + '</div>').join('') + '</div>' : '') +
-    '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
-    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
-  div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
-  div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
-  div.querySelector("[data-hide]").onclick=()=>hideStock(x.symbol);
-  return div;
-}
-
-const num=x=>Number(x).toFixed(2);
-function companyName(symbol){ return DEFAULTS.companyNames[symbol] || symbol; }
-function providerName(source){
-  return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-}
-
-renderCards();
- + num(planPrice) + '</b> · ниво -' + planLevel + '%</div>';
+    plan = '<div class="position">Предполагаем вход: <b>$' + num(planPrice) + '</b> · ниво -' + planLevel + '%</div>';
   }
 
   const div=document.createElement("article");
@@ -658,144 +612,15 @@ renderCards();
       '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
     '</div>' +
     '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
-    '<div class="price">
-
-function statusCard(x){
-  const selected = state.selectedSymbols.includes(x.symbol);
-  const labels = {
-    rate_limited: "⚠️ API LIMIT",
-    no_data: "⚠️ NO DATA",
-    invalid_symbol: "❌ INVALID SYMBOL",
-    insufficient_history: "⚠️ INSUFFICIENT HISTORY",
-    error: "⚠️ DATA ERROR",
-    provider_unavailable: "⚠️ PROVIDER UNAVAILABLE"
-  };
-  const div=document.createElement("article");
-  div.className="card error" + (selected ? " selected" : "");
-  div.dataset.symbolCard = x.symbol;
-  div.innerHTML =
-    '<div class="top">' +
-      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
-      '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
-    '</div>' +
-    '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
-    '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
-    '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
-    (Array.isArray(x.attempts) ? '<div class="provider-attempts">' + x.attempts.map(a => '<div><b>' + escapeHtml(providerName(a.provider)) + ':</b> ' + escapeHtml(a.status) + (a.message ? ' — ' + escapeHtml(a.message) : '') + '</div>').join('') + '</div>' : '') +
-    '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
-    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
-  div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
-  div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
-  div.querySelector("[data-hide]").onclick=()=>hideStock(x.symbol);
-  return div;
-}
-
-const num=x=>Number(x).toFixed(2);
-function companyName(symbol){ return DEFAULTS.companyNames[symbol] || symbol; }
-function providerName(source){
-  return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-}
-
-renderCards();
- + num(x.price) + '</div>' +
+    '<div class="price">$' + num(x.price) + '</div>' +
     '<div class="signal">' + signal + '</div>' +
     '<div class="metrics">' +
-      '<div class="metric">60d high<b>
-
-function statusCard(x){
-  const selected = state.selectedSymbols.includes(x.symbol);
-  const labels = {
-    rate_limited: "⚠️ API LIMIT",
-    no_data: "⚠️ NO DATA",
-    invalid_symbol: "❌ INVALID SYMBOL",
-    insufficient_history: "⚠️ INSUFFICIENT HISTORY",
-    error: "⚠️ DATA ERROR",
-    provider_unavailable: "⚠️ PROVIDER UNAVAILABLE"
-  };
-  const div=document.createElement("article");
-  div.className="card error" + (selected ? " selected" : "");
-  div.dataset.symbolCard = x.symbol;
-  div.innerHTML =
-    '<div class="top">' +
-      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
-      '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
-    '</div>' +
-    '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
-    '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
-    '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
-    (Array.isArray(x.attempts) ? '<div class="provider-attempts">' + x.attempts.map(a => '<div><b>' + escapeHtml(providerName(a.provider)) + ':</b> ' + escapeHtml(a.status) + (a.message ? ' — ' + escapeHtml(a.message) : '') + '</div>').join('') + '</div>' : '') +
-    '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
-    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
-  div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
-  div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
-  div.querySelector("[data-hide]").onclick=()=>hideStock(x.symbol);
-  return div;
-}
-
-const num=x=>Number(x).toFixed(2);
-function companyName(symbol){ return DEFAULTS.companyNames[symbol] || symbol; }
-function providerName(source){
-  return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-}
-
-renderCards();
- + num(x.high60) + '</b></div>' +
+      '<div class="metric">60d high<b>$' + num(x.high60) + '</b></div>' +
       '<div class="metric">От връха<b>' + dd.toFixed(2) + '%</b></div>' +
       '<div class="metric">Ден<b>' + (x.changePct>=0?"+":"") + x.changePct.toFixed(2) + '%</b></div>' +
       '<div class="metric">Обновено<b>' + escapeHtml(x.date || "—") + '</b></div>' +
     '</div>' +
-    (entries.length ? '<div class="position">Входове: <b>' + entries.length + '</b> · Среден вход: <b>
-
-function statusCard(x){
-  const selected = state.selectedSymbols.includes(x.symbol);
-  const labels = {
-    rate_limited: "⚠️ API LIMIT",
-    no_data: "⚠️ NO DATA",
-    invalid_symbol: "❌ INVALID SYMBOL",
-    insufficient_history: "⚠️ INSUFFICIENT HISTORY",
-    error: "⚠️ DATA ERROR",
-    provider_unavailable: "⚠️ PROVIDER UNAVAILABLE"
-  };
-  const div=document.createElement("article");
-  div.className="card error" + (selected ? " selected" : "");
-  div.dataset.symbolCard = x.symbol;
-  div.innerHTML =
-    '<div class="top">' +
-      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
-      '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
-    '</div>' +
-    '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
-    '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
-    '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
-    (Array.isArray(x.attempts) ? '<div class="provider-attempts">' + x.attempts.map(a => '<div><b>' + escapeHtml(providerName(a.provider)) + ':</b> ' + escapeHtml(a.status) + (a.message ? ' — ' + escapeHtml(a.message) : '') + '</div>').join('') + '</div>' : '') +
-    '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
-    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
-  div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
-  div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
-  div.querySelector("[data-hide]").onclick=()=>hideStock(x.symbol);
-  return div;
-}
-
-const num=x=>Number(x).toFixed(2);
-function companyName(symbol){ return DEFAULTS.companyNames[symbol] || symbol; }
-function providerName(source){
-  return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-}
-
-renderCards();
- + num(entries.reduce((sum,v)=>sum+v,0)/entries.length) + '</b> · P/L: <b>' + ((x.price/(entries.reduce((sum,v)=>sum+v,0)/entries.length)-1)*100).toFixed(2) + '%</b></div>' : plan) +
+    (entries.length ? '<div class="position">Входове: <b>' + entries.length + '</b> · Среден вход: <b>$' + num(entries.reduce((sum,v)=>sum+v,0)/entries.length) + '</b> · P/L: <b>' + ((x.price/(entries.reduce((sum,v)=>sum+v,0)/entries.length)-1)*100).toFixed(2) + '%</b></div>' : plan) +
     '<div class="reason">' + escapeHtml(reason) + '</div>' +
     '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
     '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
@@ -812,7 +637,6 @@ function positionEntries(symbol){
   if(typeof raw==="number" && Number.isFinite(raw) && raw>0) return [raw];
   return [];
 }
-
 function statusCard(x){
   const selected = state.selectedSymbols.includes(x.symbol);
   const labels = {
