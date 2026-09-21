@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.9.3
+Version 1.10.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -14,7 +14,7 @@ GitHub Pages frontend + Cloudflare Worker backend for informational swing monito
 - No automatic market-data scan on page load.
 - Manual Update only requests selected stocks.
 - Check Health uses /api/health, checks backend connectivity to all three provider hosts, and does not call market-data endpoints or consume provider data quota.
-- Each provider has a Test NVDA action that performs one real provider data request and bypasses the market-data cache; the result shows OK, rate limit, error, returned price/date, and API-call count.
+- Data-source enablement and priority are controlled from the sticky header. Check Health exposes a Test NVDA action for each provider.
 - Failed scans show the provider-by-provider attempts and their actual status/reason when no provider returns valid data.
 - Last successful results are kept locally.
 - Signals use the 60-trading-day high, configurable drawdown levels and optional position target.
@@ -57,3 +57,25 @@ The daily browser value is an estimate, not an account-wide authoritative counte
 ## Important
 
 API keys remain server-side in Cloudflare Worker. The frontend sends only provider names/priorities, never secrets.
+
+
+## v1.10.0 diagnostics
+
+- Provider enable/disable and priority controls are always visible in the sticky header.
+- Provider usage is shown in the page footer instead of accumulating in the settings area.
+- The browser-side request counters reset at local midnight (00:00). They are estimates for requests made through this browser, not authoritative account-wide quotas.
+- Twelve Data's Basic plan currently documents 8 API credits/minute and 800/day; its daily Basic quota resets at 00:00 UTC. Provider response headers can report exact minute credit usage. 
+- Activity Log records query, result and error events locally and can be exported as JSON.
+- The watchlist region headings span the full grid width so they no longer create a blank first tile.
+
+## Configure Twelve Data and Finnhub
+
+Set the API keys as Cloudflare Worker secrets, never in GitHub Pages/frontend files:
+
+```bash
+npx wrangler secret put TWELVE_DATA_API_KEY
+npx wrangler secret put FINNHUB_API_KEY
+npx wrangler deploy
+```
+
+After deployment use **Check Health** and then the provider's **Test NVDA** button. Health only checks backend/provider-host reachability; Test NVDA performs one real provider data request.
