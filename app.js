@@ -55,7 +55,7 @@ state.selectedSymbols = Array.isArray(state.selectedSymbols)
   : state.symbols.slice();
 state.lastResults = Array.isArray(state.lastResults) ? state.lastResults : [];
 state.hiddenSymbols = Array.isArray(state.hiddenSymbols) ? state.hiddenSymbols.filter(s => state.symbols.includes(s)) : [];
-state.sortOrder = ["alpha","priceDesc","priceAsc"].includes(state.sortOrder) ? state.sortOrder : "alpha";
+state.sortOrder = ["alpha","signal","priceDesc","priceAsc"].includes(state.sortOrder) ? state.sortOrder : "alpha";
 state.viewMode = state.viewMode === "table" ? "table" : "cards";
 state.providers = state.providers || {};
 Object.keys(DEFAULTS.providers).forEach(p => {
@@ -82,6 +82,17 @@ $("targetPct").value = DEFAULTS.target;
 $("levels").value = DEFAULTS.levels.join(",");
 if ($("sortOrder")) $("sortOrder").value = state.sortOrder;
 if ($("viewMode")) $("viewMode").value = state.viewMode;
+if ($("selectAllUpdates")) $("selectAllUpdates").onchange = e => {
+  const visible = state.symbols.filter(s => !state.hiddenSymbols.includes(s));
+  if (e.target.checked) {
+    state.selectedSymbols = [...new Set([...state.selectedSymbols, ...visible])];
+  } else {
+    state.selectedSymbols = state.selectedSymbols.filter(s => !visible.includes(s));
+  }
+  save();
+  logActivity("settings", e.target.checked ? "All visible stocks selected for Update" : "All visible stocks deselected for Update", {count:visible.length});
+  renderCards();
+};
 if ($("sortOrder")) $("sortOrder").onchange = e => {
   state.sortOrder = e.target.value;
   save();
@@ -282,6 +293,7 @@ function setSelected(symbol, checked){
   save();
   const card = document.querySelector('[data-symbol-card="' + CSS.escape(symbol) + '"]');
   if (card) card.classList.toggle("selected", checked);
+  updateSelectAllControl();
 }
 
 function hideStock(s){
@@ -359,9 +371,32 @@ $("clearLog").onclick = () => {
   localStorage.removeItem("swingActivityLog");
   renderActivityLog();
 };
-function getVisibleSymbols(results){
+function signalRank(x,target,levels){
+  if (!x) return 99;
+  if (x.status && x.status !== "ok") return 90;
+  const entries=positionEntries(x.symbol);
+  if(entries.length){
+    const avgEntry=entries.reduce((sum,v)=>sum+v,0)/entries.length;
+    const pnl=(x.price/avgEntry-1)*100;
+    return pnl >= target ? 2 : 1; // HOLD/WATCH before EXIT
+  }
+  const dd=x.drawdownPct;
+  const sortedLevels=levels.slice().sort((a,b)=>a-b);
+  const reached=sortedLevels.filter(l => dd <= -l).pop();
+  return reached ? 0 : 3; // ENTRY first, then WAIT
+}
+
+function getVisibleSymbols(results,target,levels){
   const visible = state.symbols.filter(symbol => !state.hiddenSymbols.includes(symbol));
   return visible.sort((a,b) => {
+    if (state.sortOrder === "signal") {
+      const srA=signalRank(results.get(a),target,levels);
+      const srB=signalRank(results.get(b),target,levels);
+      if(srA !== srB) return srA-srB;
+      const pa=Number(results.get(a)?.price), pb=Number(results.get(b)?.price);
+      const av=Number.isFinite(pa), bv=Number.isFinite(pb);
+      if(av && bv && pa !== pb) return pa-pb;
+    }
     if (state.sortOrder === "priceAsc" || state.sortOrder === "priceDesc") {
       const pa = Number(results.get(a)?.price);
       const pb = Number(results.get(b)?.price);
@@ -376,9 +411,19 @@ function getVisibleSymbols(results){
   });
 }
 
+function updateSelectAllControl(){
+  const control=$("selectAllUpdates");
+  if(!control) return;
+  const visible=state.symbols.filter(s => !state.hiddenSymbols.includes(s));
+  const selectedVisible=visible.filter(s => state.selectedSymbols.includes(s));
+  control.checked = visible.length > 0 && selectedVisible.length === visible.length;
+  control.indeterminate = selectedVisible.length > 0 && selectedVisible.length < visible.length;
+}
+
 function renderWatchlistControls(){
   if ($("sortOrder")) $("sortOrder").value = state.sortOrder;
   if ($("viewMode")) $("viewMode").value = state.viewMode;
+  updateSelectAllControl();
 }
 
 function renderCards(){
@@ -396,7 +441,7 @@ function renderCards(){
     return;
   }
 
-  const visibleSymbols = getVisibleSymbols(results);
+  const visibleSymbols = getVisibleSymbols(results,target,levels);
   if (state.viewMode === "table") {
     renderTableView(cards, visibleSymbols, results, target, levels);
   } else {
