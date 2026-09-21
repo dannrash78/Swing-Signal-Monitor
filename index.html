@@ -7,29 +7,10 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="authGate" class="auth-gate" aria-modal="true" role="dialog">
-  <div class="auth-panel">
-    <div class="auth-title">🔐 Личен достъп</div>
-    <p id="authMessage" class="auth-message"></p>
-    <form id="authForm">
-      <label>Потребител
-        <input id="authUsername" type="text" autocomplete="username" required>
-      </label>
-      <label>Парола
-        <input id="authPassword" type="password" autocomplete="current-password" required>
-      </label>
-      <label id="authConfirmWrap" hidden>Повтори паролата
-        <input id="authPasswordConfirm" type="password" autocomplete="new-password">
-      </label>
-      <button id="authSubmit" type="submit">Вход</button>
-    </form>
-    <p id="authLockMessage" class="auth-lock-message" hidden></p>
-    <p class="auth-security-note">Тази защита е локална за този браузър. Тя не скрива публично достъпния код на GitHub Pages.</p>
-  </div>
-</div>
+
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.13.0</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.14.0</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
   <div class="header-actions">
@@ -39,6 +20,11 @@
       <label class="header-provider"><input id="provider-twelvedata-enabled" type="checkbox"> TD <select id="provider-twelvedata-priority" aria-label="Twelve Data priority"><option>1</option><option>2</option><option>3</option></select></label>
       <label class="header-provider"><input id="provider-finnhub-enabled" type="checkbox"> FH <select id="provider-finnhub-priority" aria-label="Finnhub priority"><option>1</option><option>2</option><option>3</option></select></label>
       <button id="saveProviderHeader" type="button" class="header-save">Save</button>
+    </div>
+    <div class="header-data-actions" aria-label="Local data">
+      <button id="saveDataBtn" type="button" class="header-save">Save Data</button>
+      <button id="loadDataBtn" type="button" class="header-save">Load Data</button>
+      <input id="loadDataFile" type="file" accept="application/json,.json" hidden>
     </div>
     <button id="healthBtn" class="secondary">✓ Check Health</button>
     <button id="updateBtn">↻ Update</button>
@@ -119,6 +105,6 @@
   </form>
 </dialog>
 <footer id="usageFooter"><div id="providerUsage" class="provider-usage"></div><div class="usage-legend">Броячите са локална оценка за заявките, направени през този браузър. Update/Test заявки се нулират в 00:00 местно време. При fallback една акция може да използва повече от една заявка. Twelve Data отчита своята дневна квота по UTC според плана.</div></footer>
-<script src="app.js?v=1.13.0"></script>
+<script src="app.js?v=1.14.0"></script>
 </body>
 </html>
