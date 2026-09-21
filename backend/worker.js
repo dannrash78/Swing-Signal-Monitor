@@ -18,7 +18,7 @@ export default {
       return json({
         ok: true,
         service: "swing-signal-backend",
-        version: "1.9.2",
+        version: "1.10.0",
         providers: await providerHealth(env)
       });
     }
@@ -106,7 +106,7 @@ export default {
 async function checkProviderNetwork(url) {
   const started = Date.now();
   try {
-    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.9.2" } });
+    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.10.0" } });
     return { reachable: true, httpStatus: response.status, latencyMs: Date.now() - started };
   } catch (e) {
     return { reachable: false, httpStatus: null, latencyMs: Date.now() - started, error: e?.message || "Network error" };
