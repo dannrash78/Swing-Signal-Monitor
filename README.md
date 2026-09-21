@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.14.0
+Version 1.15.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -110,6 +110,14 @@ After deployment use **Check Health** and then the provider's **Test NVDA** butt
 
 ## v1.14.0 local backup
 - Removed the browser-local login gate.
-- Added **Save Data** and **Load Data** buttons to the header.
-- The JSON backup contains the local watchlist state, positions, selected stocks, hidden stocks, provider settings, sort/view choices, backend URL, target and drawdown levels.
+- Added **Save Data** and **Load Data** buttons to the header. They use the browser's native file picker where supported, with a download/input fallback.
+- The JSON backup contains the local watchlist state, positions, selected stocks, hidden stocks, provider settings, sort/view choices, target and drawdown levels.
+- The Backend URL is intentionally not imported from backups: each user must configure their own backend/Worker.
 - Activity Log and provider usage counters are intentionally not replaced by a backup load.
+
+
+## v1.15.0 backend configuration
+- The public frontend no longer has a default backend URL.
+- Enter the URL of your own Cloudflare Worker before using Update/Health/Test.
+- This prevents a new user from accidentally using another user's Worker and provider secrets.
+- Existing users who already saved a backend URL in their browser keep it through localStorage.
