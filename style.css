@@ -38,3 +38,6 @@ main{padding-bottom:40px}
   .header-provider{font-size:10px!important}
   .header-save{font-size:10px}
 }
+
+.health-provider-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.health-test{height:30px;padding:6px 9px;font-size:11px}
