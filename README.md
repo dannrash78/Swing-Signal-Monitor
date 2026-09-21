@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.11.0
+Version 1.12.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -93,3 +93,14 @@ After deployment use **Check Health** and then the provider's **Test NVDA** butt
 - Added sorting controls below the watchlist: alphabetical, Price descending, and Price ascending.
 - Added card/table visualization switch below the watchlist.
 - Full cards/table rows use a green highlight for ENTRY ZONE and yellow for HOLD/WATCH.
+- Watchlist controls are shown next to the Watchlist title.
+- Added master checkbox for selecting/deselecting all visible stocks for Update.
+- Added signal sorting with ENTRY ZONE first; price ascending remains available as a separate sort mode.
+- Table view uses visible row borders and alternating light/darker backgrounds for readability.
+
+
+## v1.12.0 watchlist controls
+- Sorting and view controls moved next to the Watchlist title.
+- Added "Всички за Update" master checkbox for visible stocks.
+- Added "Сигнал (ENTRY най-отгоре)" sorting.
+- Table rows have borders and alternating background shades; signal highlighting remains green/yellow where applicable.
