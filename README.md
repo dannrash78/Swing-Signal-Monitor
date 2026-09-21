@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.10.2
+Version 1.11.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -22,6 +22,9 @@ GitHub Pages frontend + Cloudflare Worker backend for informational swing monito
 - Without a holding, the card also shows the model's next/active entry level based on the configured drawdown thresholds.
 - Position entry uses a dropdown containing only currently visible watchlist stocks.
 - Clearing the holding checkbox for an existing stock clears its open entries without removing the stock from the watchlist.
+- Watchlist can be sorted alphabetically or by unit price (high-to-low / low-to-high), with the choice persisted locally.
+- Watchlist can switch between card and table views, with the choice persisted locally.
+- ENTRY ZONE tiles/rows are highlighted green; HOLD/WATCH tiles/rows are highlighted yellow.
 
 ## Data providers
 
@@ -83,3 +86,10 @@ npx wrangler deploy
 ```
 
 After deployment use **Check Health** and then the provider's **Test NVDA** button. Health only checks backend/provider-host reachability; Test NVDA performs one real provider data request.
+
+
+## v1.11.0 watchlist display
+- Removed the regional "Американски акции" heading from the watchlist rendering.
+- Added sorting controls below the watchlist: alphabetical, Price descending, and Price ascending.
+- Added card/table visualization switch below the watchlist.
+- Full cards/table rows use a green highlight for ENTRY ZONE and yellow for HOLD/WATCH.
