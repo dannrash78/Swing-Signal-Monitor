@@ -73,15 +73,22 @@ $("backendUrl").value = localStorage.getItem("swingBackend") || DEFAULTS.backend
 $("targetPct").value = DEFAULTS.target;
 $("levels").value = DEFAULTS.levels.join(",");
 renderProviderSettings();
-document.querySelectorAll("[data-provider-test]").forEach(btn => {
-  btn.onclick = () => testProvider(btn.dataset.providerTest);
-});
+renderActivityLog();
+scheduleUsageReset();
+$("saveProviderHeader").onclick = () => {
+  saveProviderSettings();
+  logActivity("settings", "Provider enablement/priority saved", {
+    providers: enabledProviders().map(p => ({provider:p, enabled:state.providers[p].enabled, priority:state.providers[p].priority}))
+  });
+};
 
 $("saveSettings").onclick = () => {
   const backend = $("backendUrl").value.trim().replace(/\/$/,"");
   localStorage.setItem("swingBackend", backend);
   saveProviderSettings();
+  logActivity("settings", "Backend/settings saved", {backend, targetPct:$("targetPct").value, levels:$("levels").value});
   renderCards();
+renderActivityLog();
 };
 
 $("updateBtn").onclick = updateSelected;
@@ -113,6 +120,7 @@ $("stockForm").onsubmit = e => {
   else delete state.positions[s];
   save();
   $("stockDialog").close();
+  logActivity("settings", "Stock added/updated", {symbol:s, holding:$("holding").checked});
   renderCards();
 };
 
@@ -141,30 +149,30 @@ function enabledProviders(){
     .filter(p => state.providers[p].enabled)
     .sort((a,b) => state.providers[a].priority - state.providers[b].priority || a.localeCompare(b));
 }
+function localUsageDate(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function resetUsageIfNeeded(){
+  const today = localUsageDate();
+  const key = "swingProviderDailyUsage";
+  const stored = JSON.parse(localStorage.getItem(key) || "null");
+  if (!stored || stored.date !== today) {
+    const fresh = {date:today, alphavantage:0, twelvedata:0, finnhub:0};
+    localStorage.setItem(key, JSON.stringify(fresh));
+    return fresh;
+  }
+  return stored;
+}
 function updateUsagePanel(usage){
   const el = $("providerUsage");
   if (!el) return;
-
-  const today = new Date().toISOString().slice(0,10);
-  const key = "swingProviderDailyUsage";
-  const stored = JSON.parse(localStorage.getItem(key) || "null") || {
-    date: today,
-    alphavantage: 0,
-    twelvedata: 0,
-    finnhub: 0
-  };
-  if (stored.date !== today) {
-    stored.date = today;
-    stored.alphavantage = 0;
-    stored.twelvedata = 0;
-    stored.finnhub = 0;
-  }
-
+  const stored = resetUsageIfNeeded();
   ["alphavantage","twelvedata","finnhub"].forEach(p => {
     const calls = Number(usage?.[p]?.apiCalls) || 0;
     if (calls > 0) stored[p] += calls;
   });
-  localStorage.setItem(key, JSON.stringify(stored));
+  localStorage.setItem("swingProviderDailyUsage", JSON.stringify(stored));
 
   const avLimit = 25;
   const tdLimit = 800;
@@ -174,12 +182,19 @@ function updateUsagePanel(usage){
 
   el.innerHTML =
     "<div><b>Alpha Vantage:</b> " + avRemaining + " / " + avLimit + " заявки остават <span class='usage-note'>(локална оценка)</span></div>" +
-    "<div class='usage-sub'>Използвани днес през този браузър: " + stored.alphavantage + "</div>" +
+    "<div class='usage-sub'>Използвани днес: " + stored.alphavantage + "</div>" +
     "<div><b>Twelve Data:</b> " + tdRemaining + " / " + tdLimit + " дневни кредита остават <span class='usage-note'>(локална оценка)</span></div>" +
-    "<div class='usage-sub'>Използвани днес през този браузър: " + stored.twelvedata + " · текущата минута: " + (Number.isFinite(minuteLeft) ? minuteLeft : "—") + "</div>" +
-    "<div><b>Finnhub:</b> " + stored.finnhub + " заявки направени днес през този браузър</div>" +
-    "<div class='usage-sub'>Точен дневен остатък не се изчислява, защото не е зададен надежден дневен free quota от този backend.</div>" +
-    "<div class='usage-note'>⚠️ Броячите са локална оценка и не включват заявки, направени извън този браузър/API ключ.</div>";
+    "<div class='usage-sub'>Използвани днес: " + stored.twelvedata + " · текущата минута: " + (Number.isFinite(minuteLeft) ? minuteLeft : "—") + "</div>" +
+    "<div><b>Finnhub:</b> " + stored.finnhub + " заявки направени днес</div>" +
+    "<div class='usage-sub'>Точен дневен остатък не се показва, защото backend-ът няма надежден дневен free quota отговoр.</div>" +
+    "<div class='usage-note'>⚠️ Това е локален брояч за този браузър/API ключ. Нулиране на UI брояча: 00:00 местно време.</div>";
+}
+function scheduleUsageReset(){
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(24,0,0,0);
+  const delay = Math.max(1000, next.getTime() - now.getTime() + 250);
+  setTimeout(() => { resetUsageIfNeeded(); updateUsagePanel(); renderActivityLog(); scheduleUsageReset(); }, delay);
 }
 function providerName(source){
   return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
@@ -250,6 +265,52 @@ function renderHiddenList(){
   });
 }
 
+function logActivity(type, message, details = {}, level = "info"){
+  const key = "swingActivityLog";
+  let logs = [];
+  try { logs = JSON.parse(localStorage.getItem(key) || "[]"); } catch {}
+  logs.push({
+    ts: new Date().toISOString(),
+    localTime: new Date().toLocaleString(),
+    type, level, message, details
+  });
+  if (logs.length > 1000) logs = logs.slice(-1000);
+  localStorage.setItem(key, JSON.stringify(logs));
+  renderActivityLog();
+}
+function getActivityLogs(){
+  try { return JSON.parse(localStorage.getItem("swingActivityLog") || "[]"); } catch { return []; }
+}
+function renderActivityLog(){
+  const el = $("activityLog");
+  if (!el) return;
+  const logs = getActivityLogs();
+  if (!logs.length) {
+    el.innerHTML = '<div class="log-entry"><span class="log-time">—</span> Няма записана активност.</div>';
+    return;
+  }
+  el.innerHTML = logs.slice().reverse().map(x =>
+    '<div class="log-entry ' + (x.level === "error" ? "log-error" : "") + '">' +
+      '<span class="log-time">' + escapeHtml(x.localTime || x.ts) + '</span> · <b>' + escapeHtml(x.type) + '</b> · ' +
+      escapeHtml(x.message) + (Object.keys(x.details || {}).length ? ' · ' + escapeHtml(JSON.stringify(x.details)) : '') +
+    '</div>'
+  ).join("");
+}
+function exportActivityLog(){
+  const logs = getActivityLogs();
+  const blob = new Blob([JSON.stringify(logs,null,2)], {type:"application/json;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "swing-signal-activity-log-" + localUsageDate() + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$("exportLog").onclick = exportActivityLog;
+$("clearLog").onclick = () => {
+  if (!confirm("Изтрий локалния Activity Log?")) return;
+  localStorage.removeItem("swingActivityLog");
+  renderActivityLog();
+};
 function renderCards(){
   const cards = $("cards");
   const target = Number($("targetPct").value) || 10;
@@ -314,10 +375,12 @@ async function testProvider(provider){
   result.hidden = false;
   result.className = "provider-test-result";
   result.innerHTML = "<b>Тест:</b> " + escapeHtml(providerName(provider)) + " / NVDA…";
+  logActivity("provider_test", "Query started", {provider, symbol:"NVDA"});
   try{
     const r = await fetch(backend + "/api/test?provider=" + encodeURIComponent(provider) + "&symbol=NVDA",{cache:"no-store"});
     const data = await r.json();
     updateUsagePanel(data.usage);
+    logActivity("provider_test", data.ok ? "Result OK" : "Result/Error", {provider, symbol:"NVDA", status:data.status, message:data.message || data.error || null, result:data.result || null}, data.ok ? "info" : "error");
     const ok = r.ok && data?.ok;
     result.className = "provider-test-result " + (ok ? "health-ok" : "health-error");
     result.innerHTML =
@@ -328,6 +391,7 @@ async function testProvider(provider){
       (data.result ? "<p><b>Цена:</b> $" + escapeHtml(num(data.result.price)) + " · <b>Дата:</b> " + escapeHtml(data.result.date) + "</p>" : "") +
       "<p><b>API calls:</b> " + escapeHtml(String(data.usage?.[provider]?.apiCalls ?? "—")) + "</p>";
   }catch(e){
+    logActivity("provider_test", "Network/Backend error", {provider, symbol:"NVDA", error:e.message || "Няма връзка."}, "error");
     result.className = "provider-test-result health-error";
     result.innerHTML = "<b>❌ Network/Backend error</b><p>" + escapeHtml(e.message || "Няма връзка.") + "</p>";
   }
@@ -357,6 +421,7 @@ async function updateSelected(){
     const providers = enabledProviders();
     if (!providers.length) throw new Error("Няма включен data provider.");
     const url = backend + "/api/scan?symbols=" + encodeURIComponent(selected.join(",")) + "&providers=" + encodeURIComponent(providers.join(","));
+    logActivity("query", "Update query started", {url, symbols:selected, providers});
     const r = await fetch(url, {cache:"no-store"});
     let data = null;
     try { data = await r.json(); } catch {}
@@ -384,11 +449,13 @@ async function updateSelected(){
 
     if(!data || !Array.isArray(data.results)) throw new Error("Невалиден отговор от backend.");
     updateUsagePanel(data.usage);
+    logActivity("result", "Update result received", {httpStatus:r.status, symbols:selected, providers, results:data.results, usage:data.usage}, "info");
 
     state.lastResults = mergeResults(state.lastResults,data.results);
     save();
     renderCards();
   }catch(e){
+    logActivity("error", "Update failed", {error:e.message || "Неизвестна грешка", selected}, "error");
     await showBackendDiagnostic(cards, backend, e);
   }
 }
@@ -412,6 +479,7 @@ async function checkHealth(){
 
   const healthUrl = backend + "/api/health";
   result.hidden = false;
+  logActivity("health", "Health query started", {url:healthUrl});
   result.className = "health-result";
   result.innerHTML = "<b>Проверявам Health…</b><p>URL: " + escapeHtml(healthUrl) + "</p>";
 
@@ -429,7 +497,9 @@ async function checkHealth(){
       "<p><b>Резултат:</b> " + escapeHtml(data ? JSON.stringify(data) : (text || "Няма четим отговор.")) + "</p>" +
       '<div id="providerHealth"></div>'; 
     if (data?.providers) renderHealthProviders(data.providers);
+    logActivity("health", "Health result received", {httpStatus:r.status, ok:!!(r.ok && data?.ok), providers:data?.providers || null}, r.ok && data?.ok ? "info" : "error");
   }catch(e){
+    logActivity("error", "Health request failed", {url:healthUrl, error:e.message || "Няма връзка."}, "error");
     result.className = "health-result health-error";
     result.innerHTML =
       "<b>❌ Health заявката не може да бъде изпълнена</b>" +
@@ -439,6 +509,7 @@ async function checkHealth(){
 }
 
 async function showBackendDiagnostic(cards, backend, scanError){
+  logActivity("error", "Backend diagnostic started", {backend, scanError:scanError.message || "Неизвестна грешка"}, "error");
   cards.innerHTML = '<div class="card loading">Проверявам състоянието на Backend-а…</div>';
   const healthUrl = backend.replace(/\/$/,"") + "/api/health";
 
