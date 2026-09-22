@@ -10,7 +10,7 @@
 
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.18.0</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.19.0</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
   <div class="header-actions">
@@ -25,48 +25,11 @@
   </div>
 </header>
 <main>
-  <section class="settings">
-    <label>Цел за изход (%)
-      <input id="targetPct" type="number" value="10" min="1" max="50" step="0.5">
-    </label>
-    <label>Траншове
-      <input id="levels" value="5,8,10" aria-label="Нива на спад">
-    </label>
-    <button id="saveSettings">Запази стратегия</button><p class="hint settings-inline-hint">Целта за изход и нивата на спад са част от стратегията. Backend URL и Data Sources са в ⚙ Settings.</p>
-    <div id="providerTestResult" class="provider-test-result" hidden></div>
-  </section>
   <section>
     <div class="toolbar">
       <div class="watchlist-title">
         <div class="watchlist-heading-line">
           <h2>Watchlist</h2>
-          <div class="watchlist-controls" aria-label="Watchlist управление">
-            <label class="master-select"><input id="selectAllUpdates" type="checkbox"> Всички за Update</label>
-            <label>Подреди:
-              <select id="sortOrder">
-                <option value="alpha">Азбучен ред (A → Z)</option>
-                <option value="signal">Сигнал (ENTRY най-отгоре)</option>
-                <option value="priceDesc">Price (висока → ниска)</option>
-                <option value="priceAsc">Price (ниска → висока)</option>
-              </select>
-            </label>
-            <label>Изглед:
-              <select id="viewMode">
-                <option value="cards">Карти</option>
-                <option value="table">Таблица</option>
-              </select>
-            </label>
-            <button id="importFinvizBtn" type="button" class="header-save">Import Finviz CSV</button>
-            <a id="openFinvizBtn" class="header-save header-link" href="https://finviz.com/screener" target="_blank" rel="noopener">Open Finviz</a>
-            <select id="finvizPreset" class="header-preset" aria-label="Finviz preset">
-              <option value="">Finviz preset…</option>
-              <option value="growthTrend">Growth + Trend</option>
-              <option value="growthQuality">Growth + Quality</option>
-              <option value="full">Growth + Quality + Trend</option>
-            </select>
-            <button id="openFinvizPresetBtn" type="button" class="header-save">Open Preset</button>
-            <input id="finvizFile" type="file" accept=".csv,text/csv" hidden>
-          </div>
         </div>
         <p class="hint">Избери за кои акции да се направи заявка при <b>Update</b>. Изборът се запазва.</p>
       </div>
@@ -98,7 +61,12 @@
     <h3>Въведи / промени позиция</h3>
     <select id="symbol" required aria-label="Акция"></select>
     <label class="check"><input id="holding" type="checkbox"> Имам отворена позиция</label>
-    <input id="entryPrice" type="number" step="0.01" placeholder="Входна цена" disabled>
+    <label>Входна цена
+      <input id="entryPrice" type="number" step="0.01" placeholder="Цена" disabled>
+    </label>
+    <label>Количество
+      <input id="entryQuantity" type="number" step="0.0001" min="0.0001" placeholder="Брой акции" disabled>
+    </label>
     <menu>
       <button type="button" id="cancelStock">Отказ</button>
       <button id="addStock" type="submit">Запази</button>
@@ -106,6 +74,6 @@
   </form>
 </dialog>
 <footer id="usageFooter"><div id="providerUsage" class="provider-usage"></div><div class="usage-legend">Броячите са локална оценка за заявките, направени през този браузър. Update/Test заявки се нулират в 00:00 местно време. При fallback една акция може да използва повече от една заявка. Twelve Data отчита своята дневна квота по UTC според плана.</div></footer>
-<script src="app.js?v=1.17.0"></script>
+<script src="app.js?v=1.19.0"></script>
 </body>
 </html>
