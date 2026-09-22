@@ -542,3 +542,35 @@ main{padding-bottom:40px}
 .settings-link,.settings-link:visited,.settings-link:hover,.settings-link:active{color:#fff !important}
 .settings-strategy-grid{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:14px}
 @media(max-width:700px){.settings-strategy-grid{grid-template-columns:1fr}.group-controls{align-items:stretch}.group-controls label{width:100%}.group-controls select{flex:1}}
+
+/* v1.19.1 minimal settings */
+.settings-minimal{max-width:1100px}
+.settings-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;margin:16px 0;box-shadow:0 1px 6px #00000008}
+.settings-row{display:flex;justify-content:space-between;align-items:center;gap:20px}
+.settings-card h2{margin:0 0 3px;font-size:17px}
+.settings-card p{margin:0;color:#6b7280;font-size:12px}
+.settings-inline{display:flex;align-items:end;gap:8px}
+.settings-inline label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;min-height:auto}
+.settings-inline input{height:36px;min-width:300px}
+.settings-inline button{height:36px}
+.strategy-inline input{min-width:100px;width:110px}
+.strategy-inline label:nth-child(2) input{width:150px}
+.settings-message{display:block;margin-top:8px;font-size:12px;color:#166534}
+.provider-minimal-list{margin-top:12px;border-top:1px solid #e5e7eb}
+.provider-minimal-row{display:grid;grid-template-columns:minmax(220px,1fr) 120px minmax(180px,1fr);align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #eef0f3}
+.provider-name{display:flex;align-items:center;gap:8px;font-size:13px}
+.provider-name input{width:17px;height:17px;accent-color:#2563eb}
+.provider-minimal-row>label:not(.provider-name){font-size:11px;font-weight:700;color:#4b5563;display:flex;align-items:center;gap:6px}
+.provider-minimal-row select{height:32px;border:1px solid #d4dae3;border-radius:7px;background:#fff}
+.key-status{font-size:11px;color:#6b7280}
+.settings-card-actions{display:flex;align-items:center;gap:10px;margin-top:12px}
+.settings-note{margin-top:12px!important;font-size:11px!important}
+.settings-note code{font-size:10px}
+@media(max-width:750px){
+ .settings-row{align-items:stretch;flex-direction:column}
+ .settings-inline{align-items:stretch;flex-wrap:wrap}
+ .settings-inline input{min-width:0;flex:1}
+ .provider-minimal-row{grid-template-columns:1fr;gap:7px}
+ .provider-minimal-row>label:not(.provider-name){justify-content:space-between}
+ .key-status{padding-left:25px}
+}
