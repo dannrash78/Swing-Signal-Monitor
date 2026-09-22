@@ -906,7 +906,7 @@ function placeholderCard(symbol){
 
 async function testProvider(provider){
   const result = $("providerTestResult");
-  const backend = $("backendUrl").value.trim().replace(/\/$/,"");
+  const backend = (localStorage.getItem("swingBackend") || "").trim().replace(/\/$/,"");
   if(!backend) return;
   result.hidden = false;
   result.className = "provider-test-result";
