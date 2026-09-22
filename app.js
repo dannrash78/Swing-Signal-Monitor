@@ -1086,9 +1086,14 @@ function card(x,target,levels){
   else if(sortedLevels.length&&buy.level!==null&&Number(x.drawdownPct)>-buy.level&&Number(x.drawdownPct)<=-(buy.level-1)) cls="watch";
   const owned=entries.length>0;
   const avgEntry=owned?weightedAverageEntry(entries):null;
+  const totalQuantity=owned?entries.reduce((sum,e)=>sum+Number(e.quantity||0),0):0;
   const pnl=owned?(x.price/avgEntry-1)*100:null;
+  const pnlMoney=owned?(x.price-avgEntry)*totalQuantity:null;
   const positionSignal=owned?(pnl>=target?"🔵 EXIT ZONE":"🟡 HOLD / WATCH"):"";
   const positionReason=owned?("Позицията е на "+pnl.toFixed(2)+"% спрямо средната претеглена входна цена. Целта е +"+target+"%."):"";
+  const pnlClass=owned?(pnlMoney>0?"profit":pnlMoney<0?"loss":"neutral"):"";
+  const pnlIcon=owned?(pnlMoney>0?"↑":pnlMoney<0?"↓":"→"):"";
+  const pnlMoneyText=owned?((pnlMoney>=0?"+":"-")+"$"+Math.abs(pnlMoney).toFixed(2)):"";
   let buySignal="⚪ WAIT";
   let buyReason=buy.level!==null?"Следващо/активно ниво за допокупка: -"+buy.level+"%.":"Няма активно ниво за допокупка.";
   if(buy.kind==="entry"){buySignal="🟢 ENTRY ZONE";buyReason="Достигнато ниво за допокупка: -"+buy.level+"% спрямо 60-дневния връх.";}
@@ -1097,7 +1102,7 @@ function card(x,target,levels){
   div.className="card "+cls+(selected?" selected":"")+(owned?" owned-card":"");
   div.dataset.symbolCard=x.symbol;
   div.innerHTML=
-    '<div class="top"><label class="selection"><input type="checkbox" data-select="'+escapeHtml(x.symbol)+'"'+(selected?" checked":"")+'> Заявка при Update</label><div class="owned-badge">'+(owned?"МОЯ ПОЗИЦИЯ":"")+'</div></div>'+
+    '<div class="top"><label class="selection"><input type="checkbox" data-select="'+escapeHtml(x.symbol)+'"'+(selected?" checked":"")+'> Заявка при Update</label>'+(owned?'<div class="owned-position-card"><span class="owned-badge">МОЯ ПОЗИЦИЯ</span><span class="owned-pnl '+pnlClass+'"><span class="owned-pnl-icon">'+pnlIcon+'</span> '+pnlMoneyText+'</span></div>':'')+'</div>'+
     '<div class="symbol">'+tickerLink(x.symbol)+' <span class="company-name">'+escapeHtml(companyName(x.symbol))+'</span></div>'+
     '<div class="price">$'+num(x.price)+'</div>'+
     (owned?'<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>'+positionSignal+'</b><div class="analysis-text">'+escapeHtml(positionReason)+'</div></div>':'')+
