@@ -89,7 +89,6 @@ if (!localStorage.getItem("swingAmdMigrationV2")) {
 }
 
 const $ = id => document.getElementById(id);
-$("backendUrl").value = localStorage.getItem("swingBackend") || "";
 $("targetPct").value = DEFAULTS.target;
 $("levels").value = DEFAULTS.levels.join(",");
 if ($("sortOrder")) $("sortOrder").value = state.sortOrder;
@@ -245,20 +244,10 @@ $("openFinvizPresetBtn").onclick=()=>{
 renderProviderSettings();
 renderActivityLog();
 scheduleUsageReset();
-$("saveProviderHeader").onclick = () => {
-  saveProviderSettings();
-  logActivity("settings", "Provider enablement/priority saved", {
-    providers: enabledProviders().map(p => ({provider:p, enabled:state.providers[p].enabled, priority:state.providers[p].priority}))
-  });
-};
-
 $("saveSettings").onclick = () => {
-  const backend = $("backendUrl").value.trim().replace(/\/$/,"");
-  localStorage.setItem("swingBackend", backend);
-  saveProviderSettings();
-  logActivity("settings", "Backend/settings saved", {backend, targetPct:$("targetPct").value, levels:$("levels").value});
+  logActivity("settings", "Strategy settings saved", {targetPct:$("targetPct").value, levels:$("levels").value});
   renderCards();
-renderActivityLog();
+  renderActivityLog();
 };
 
 $("updateBtn").onclick = updateSelected;
@@ -759,8 +748,12 @@ function renderCards(){
     cards.appendChild(group);
   };
 
-  renderGroup("Мои позиции",owned,true);
-  renderGroup("Други наблюдавани",others,false);
+  if(state.viewMode === "table") {
+    renderTableView(cards, visibleSymbols, results, target, levels);
+  } else {
+    renderGroup("Мои позиции",owned,true);
+    renderGroup("Други наблюдавани",others,false);
+  }
 
   renderWatchlistControls();
   renderHiddenList();
