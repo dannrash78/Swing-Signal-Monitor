@@ -752,3 +752,102 @@ main{padding-bottom:40px}
     width:100%;
   }
 }
+
+/* v1.19.3 — provider account / Worker controls */
+.settings-minimal .provider-minimal-row.provider-head{
+  min-height:34px;
+  padding:6px 0;
+  color:#6b7280;
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  border-bottom:1px solid #dfe3e8;
+}
+.settings-minimal .provider-minimal-row{
+  grid-template-columns:minmax(200px,1fr) 135px minmax(260px,1.25fr) 125px;
+}
+.settings-minimal .provider-minimal-row.provider-head{
+  grid-template-columns:minmax(200px,1fr) 135px minmax(260px,1.25fr) 125px;
+}
+.settings-minimal .priority-control{
+  display:grid!important;
+  grid-template-columns:70px 58px!important;
+  align-items:center;
+  gap:7px;
+  margin:0;
+  font-size:11px;
+  font-weight:700;
+  color:#4b5563;
+}
+.settings-minimal .key-name{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+.settings-minimal .key-name code{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11px;
+  color:#374151;
+}
+.copy-secret{
+  height:28px!important;
+  min-width:auto!important;
+  padding:4px 8px!important;
+  font-size:10px!important;
+  white-space:nowrap;
+}
+.provider-account-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:32px;
+  padding:6px 10px;
+  border-radius:7px;
+  background:#374151;
+  color:#fff!important;
+  text-decoration:none;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.provider-account-btn:hover{background:#4b5563}
+.cloudflare-admin{
+  display:grid;
+  grid-template-columns:1fr auto;
+  align-items:center;
+  gap:18px;
+  margin-top:16px;
+  padding:12px 14px;
+  border:1px solid #e5e7eb;
+  border-radius:9px;
+  background:#f8fafc;
+}
+.cloudflare-admin>div{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px 16px;
+  font-size:11px;
+}
+.cloudflare-admin span{color:#6b7280}
+.cloudflare-admin code{font-size:10px;color:#374151}
+@media(max-width:900px){
+  .settings-minimal .provider-minimal-row,
+  .settings-minimal .provider-minimal-row.provider-head{
+    grid-template-columns:minmax(180px,1fr) 125px minmax(220px,1fr) 110px;
+  }
+}
+@media(max-width:700px){
+  .settings-minimal .provider-minimal-row,
+  .settings-minimal .provider-minimal-row.provider-head{
+    grid-template-columns:1fr;
+  }
+  .settings-minimal .provider-minimal-row.provider-head{display:none}
+  .settings-minimal .priority-control{grid-template-columns:70px 58px!important}
+  .settings-minimal .key-name{padding-left:25px}
+  .settings-minimal .provider-account-btn{width:max-content;margin-left:25px}
+  .cloudflare-admin{grid-template-columns:1fr}
+}
