@@ -285,3 +285,52 @@ main{padding-bottom:40px}
     order:3;
   }
 }
+
+
+/* v1.16.0 analysis layer */
+.analysis-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:10px;
+}
+.analysis-block{
+  padding:9px;
+  border-radius:9px;
+  background:#f7f8fa;
+  font-size:12px;
+  line-height:1.35;
+}
+.analysis-label{
+  font-size:11px;
+  font-weight:800;
+  color:#6b7280;
+  margin-bottom:3px;
+}
+.analysis-text{
+  margin-top:4px;
+  color:#374151;
+}
+.profile-status{
+  margin-top:10px;
+  font-size:11px;
+  color:#4b5563;
+  font-weight:700;
+}
+.table-row.entry td{
+  background:#ecfdf3 !important;
+}
+.table-row.watch td{
+  background:#fffbeb !important;
+}
+.table-row.wait:nth-child(even) td{
+  background:#f0f2f5;
+}
+.table-row.wait:nth-child(odd) td{
+  background:#fff;
+}
+@media(max-width:700px){
+  .analysis-grid{
+    grid-template-columns:1fr;
+  }
+}
