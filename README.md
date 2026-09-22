@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.21.0
+Version 1.21.1
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -93,3 +93,9 @@ API keys remain server-side in Cloudflare Worker. The frontend sends only provid
 - Added **Update Market** so market context can be refreshed separately from the selected watchlist Update workflow.
 - Added a dedicated **Help** page explaining the tool purpose, configuration, existing signal logic, Market Regime and how to read the results.
 - Added /api/market to the Cloudflare Worker with provider fallback and 6-hour cache behavior.
+
+
+## v1.21.1
+
+- Added **+ Добави акция** for adding an individual ticker to the Watchlist without opening a position.
+- Added step-by-step Help instructions for adding a ticker, exporting a single ticker's data from Finviz Screener as CSV, importing it into the tool, and then running Market/stock Update.
