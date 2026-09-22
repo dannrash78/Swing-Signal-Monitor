@@ -939,42 +939,47 @@ function marketNumber(value){
   return Number.isFinite(Number(value)) ? Number(value).toFixed(2) : "—";
 }
 function marketPct(value){
-  return Number.isFinite(Number(value)) ? ((Number(value) >= 0 ? "+" : "") + Number(value).toFixed(2) + "%") : "—";
+  return Number.isFinite(Number(value)) ? ((Number(value)>=0?"+":"")+Number(value).toFixed(2)+"%") : "—";
 }
 function marketInstrumentRegime(m){
   if(!m || !Number.isFinite(Number(m.price)) || !Number.isFinite(Number(m.sma50)) || !Number.isFinite(Number(m.return60))){
-    return {kind:"unknown",label:"INSUFFICIENT DATA",text:"Липсват достатъчно данни за основната market regime логика."};
+    return {kind:"unknown",label:"INSUFFICIENT DATA"};
   }
   const bullCore=Number(m.price)>Number(m.sma50) && Number(m.return60)>=0;
   const bearCore=Number(m.price)<Number(m.sma50) && Number(m.return60)<0;
   const has200=Number.isFinite(Number(m.sma200));
   if(has200){
-    if(bullCore && Number(m.price)>Number(m.sma200)) return {kind:"bull",label:"BULLISH",text:"Цена над SMA50 и SMA200 + положителен 60-дневен резултат."};
-    if(bearCore && Number(m.price)<Number(m.sma200)) return {kind:"bear",label:"BEARISH",text:"Цена под SMA50 и SMA200 + отрицателен 60-дневен резултат."};
+    if(bullCore && Number(m.price)>Number(m.sma200)) return {kind:"bull",label:"BULLISH"};
+    if(bearCore && Number(m.price)<Number(m.sma200)) return {kind:"bear",label:"BEARISH"};
   }else{
-    if(bullCore) return {kind:"bull",label:"BULLISH",text:"Цена над SMA50 + положителен 60-дневен резултат. SMA200 няма достатъчно данни."};
-    if(bearCore) return {kind:"bear",label:"BEARISH",text:"Цена под SMA50 + отрицателен 60-дневен резултат. SMA200 няма достатъчно данни."};
+    if(bullCore) return {kind:"bull",label:"BULLISH"};
+    if(bearCore) return {kind:"bear",label:"BEARISH"};
   }
-  return {kind:"neutral",label:"TRANSITION",text:"Показателите са смесени; пазарният режим не е еднозначен."};
+  return {kind:"neutral",label:"TRANSITION"};
 }
 function calculateMarketRegime(markets){
   const spy=markets?.find(x=>x.symbol==="SPY");
   const qqq=markets?.find(x=>x.symbol==="QQQ");
-  if(!spy || !qqq) return {kind:"unknown",label:"NO DATA",summary:"Не са налични данни и за SPY, и за QQQ.",quality:"insufficient",markets:markets||[]};
-  const sr=marketInstrumentRegime(spy), qr=marketInstrumentRegime(qqq);
-  let kind="neutral", label="🟡 NEUTRAL / TRANSITION";
+  if(!spy || !qqq){
+    return {kind:"unknown",label:"NO DATA",summary:"Не са налични данни и за SPY, и за QQQ.",quality:"insufficient",markets:markets||[]};
+  }
+  const sr=marketInstrumentRegime(spy);
+  const qr=marketInstrumentRegime(qqq);
+  let kind="neutral";
+  let label="🟡 NEUTRAL / TRANSITION";
   if(sr.kind==="bull" && qr.kind==="bull"){ kind="risk-on"; label="🟢 RISK-ON"; }
   else if(sr.kind==="bear" && qr.kind==="bear"){ kind="risk-off"; label="🔴 RISK-OFF"; }
   const quality=Number.isFinite(Number(spy.sma200)) && Number.isFinite(Number(qqq.sma200)) ? "complete" : "partial";
-  const summary=kind==="risk-on"
-    ? "SPY и QQQ са в еднакъв положителен режим."
-    : kind==="risk-off"
-      ? "SPY и QQQ са в еднакъв отрицателен режим."
-      : "SPY и QQQ не дават еднакъв режим или са в преход.";
+  const summary=kind==="risk-on" ? "SPY и QQQ са в еднакъв положителен режим."
+    : kind==="risk-off" ? "SPY и QQQ са в еднакъв отрицателен режим."
+    : "SPY и QQQ не дават еднакъв режим или са в преход.";
   return {kind,label,summary,quality,markets:[{...spy,regime:sr.kind},{...qqq,regime:qr.kind}],updatedAt:new Date().toISOString()};
 }
 function marketRegimeClass(kind){
-  return kind==="risk-on" ? "market-risk-on" : kind==="risk-off" ? "market-risk-off" : kind==="unknown" ? "market-unknown" : "market-neutral";
+  if(kind==="risk-on") return "market-risk-on";
+  if(kind==="risk-off") return "market-risk-off";
+  if(kind==="unknown") return "market-unknown";
+  return "market-neutral";
 }
 function renderMarketRegime(){
   const el=$("marketRegime");
@@ -984,273 +989,27 @@ function renderMarketRegime(){
     el.innerHTML='<div class="market-empty">Няма заредени пазарни данни. Натисни <b>Update Market</b>.</div>';
     return;
   }
-  el.innerHTML =
-    '<div class="market-regime-summary '+marketRegimeClass(m.kind)+'">'+
-      '<div><span class="market-regime-badge">'+escapeHtml(m.label||"—")+'</span><span class="market-quality">'+escapeHtml(m.quality==="complete"?"200d confirmation: available":"200d confirmation: limited")+'</span></div>'+
-      '<div class="market-summary-text">'+escapeHtml(m.summary||"")+'</div>'+
+  const cards=m.markets.map(x=>{
+    const r=marketInstrumentRegime(x);
+    return '<article class="market-card '+(r.kind==="bull"?"market-bull":r.kind==="bear"?"market-bear":"market-neutral-card")+'">'+
+      '<div class="market-card-top"><b>'+escapeHtml(x.symbol)+'</b><span>'+escapeHtml(r.label)+'</span></div>'+
+      '<div class="market-price">$'+marketNumber(x.price)+'</div>'+
+      '<div class="market-metrics">'+
+        '<span>20d <b>'+marketPct(x.return20)+'</b></span>'+
+        '<span>60d <b>'+marketPct(x.return60)+'</b></span>'+
+        '<span>vs SMA20 <b>'+(Number.isFinite(Number(x.sma20))?(Number(x.price)>=Number(x.sma20)?"Above":"Below"):"—")+'</b></span>'+
+        '<span>vs SMA50 <b>'+(Number.isFinite(Number(x.sma50))?(Number(x.price)>=Number(x.sma50)?"Above":"Below"):"—")+'</b></span>'+
+        '<span>vs SMA200 <b>'+(Number.isFinite(Number(x.sma200))?(Number(x.price)>=Number(x.sma200)?"Above":"Below"):"—")+'</b></span>'+
+        '<span>Drawdown <b>'+marketPct(x.drawdownPct)+'</b></span>'+
+      '</div>'+
+    '</article>';
+  }).join("");
+  const quality=m.quality==="complete" ? "200d confirmation: available" : "200d confirmation: limited";
+  el.innerHTML='<div class="market-regime-summary '+marketRegimeClass(m.kind)+'">'+
+    '<div><span class="market-regime-badge">'+escapeHtml(m.label||"—")+'</span><span class="market-quality">'+escapeHtml(quality)+'</span></div>'+
+    '<div class="market-summary-text">'+escapeHtml(m.summary||"")+'</div>'+
     '</div>'+
-    '<div class="market-grid">'+
-      m.markets.map(x=>{
-        const r=marketInstrumentRegime(x);
-        return '<article class="market-card '+(r.kind==="bull"?"market-bull":r.kind==="bear"?"market-bear":"market-neutral-card")+'">'+
-          '<div class="market-card-top"><b>'+escapeHtml(x.symbol)+'</b><span>'+escapeHtml(r.label)+'</span></div>'+
-          '<div class="market-price">
-  const cards = $("cards");
-  const backend = (localStorage.getItem("swingBackend") || "").trim().replace(/\/$/,"");
-  const selected = state.selectedSymbols.filter(s => state.symbols.includes(s));
-
-  if (!backend) {
-    cards.innerHTML = '<div class="card error"><b>Въведи Backend URL.</b><p>Постави адреса на Cloudflare Worker.</p></div>';
-    return;
-  }
-  if (!selected.length) {
-    cards.innerHTML = '<div class="card"><b>Няма избрани акции.</b><p>Постави отметка на поне една акция и натисни Update.</p></div>';
-    return;
-  }
-
-  save();
-  cards.innerHTML = '<div class="card loading">Изпращам заявка само за избраните акции: ' + escapeHtml(selected.join(", ")) + '…</div>';
-
-  const target = state.target;
-  const levels = state.levels.slice();
-
-  try{
-    const providers = enabledProviders();
-    if (!providers.length) throw new Error("Няма включен data provider.");
-    const url = backend + "/api/scan?symbols=" + encodeURIComponent(selected.join(",")) + "&providers=" + encodeURIComponent(providers.join(","));
-    logActivity("query", "Update query started", {url, symbols:selected, providers});
-    const r = await fetch(url, {cache:"no-store"});
-    let data = null;
-    try { data = await r.json(); } catch {}
-
-    if (data?.rateLimited) {
-      cards.innerHTML = "";
-      const notice = document.createElement("div");
-      notice.className = "card error";
-      notice.innerHTML = '<b>⚠️ Достигнат е лимитът на Alpha Vantage</b><p>Днешният API лимит е достигнат. Новите заявки са спрени.</p><p>Изпратени заявки към Worker/Alpha Vantage в тази операция: <b>' + escapeHtml(String(data.apiCalls ?? "—")) + '</b></p>';
-      cards.appendChild(notice);
-      if (Array.isArray(data.results)) {
-        state.lastResults = mergeResults(state.lastResults,data.results);
-        save();
-      }
-      renderCards();
-      return;
-    }
-
-    if(!r.ok){
-      let message = data?.error || ("HTTP " + r.status);
-      if(r.status === 403) message = "Достъпът до Backend-а е отказан (HTTP 403). Провери Cloudflare Worker / Access настройките.";
-      else if(r.status === 429) message = "Backend-ът е ограничил заявките (HTTP 429). Изчакай и опитай отново по-късно.";
-      throw new Error(message);
-    }
-
-    if(!data || !Array.isArray(data.results)) throw new Error("Невалиден отговор от backend.");
-    updateUsagePanel(data.usage);
-    logActivity("result", "Update result received", {httpStatus:r.status, symbols:selected, providers, results:data.results, usage:data.usage}, "info");
-
-    state.lastResults = mergeResults(state.lastResults,data.results);
-    save();
-    renderCards();
-  }catch(e){
-    logActivity("error", "Update failed", {error:e.message || "Неизвестна грешка", selected}, "error");
-    await showBackendDiagnostic(cards, backend, e);
-  }
-}
-
-function mergeResults(oldResults,newResults){
-  const map = new Map(oldResults.map(x=>[x.symbol,x]));
-  newResults.forEach(x=>map.set(x.symbol,x));
-  return [...map.values()].filter(x=>state.symbols.includes(x.symbol));
-}
-
-async function checkHealth(){
-  const result = $("healthResult");
-  const backend = (localStorage.getItem("swingBackend") || "").trim().replace(/\/$/,"");
-
-  if(!backend){
-    result.hidden = false;
-    result.className = "health-result health-error";
-    result.innerHTML = "<b>❌ Няма Backend URL.</b>";
-    return;
-  }
-
-  const healthUrl = backend + "/api/health";
-  result.hidden = false;
-  logActivity("health", "Health query started", {url:healthUrl});
-  result.className = "health-result";
-  result.innerHTML = "<b>Проверявам Health…</b><p>URL: " + escapeHtml(healthUrl) + "</p>";
-
-  try{
-    const r = await fetch(healthUrl,{cache:"no-store"});
-    const text = await r.text();
-    let data = null;
-    try { data = JSON.parse(text); } catch {}
-
-    result.className = "health-result " + (r.ok && data?.ok ? "health-ok" : "health-error");
-    result.innerHTML =
-      "<b>" + (r.ok && data?.ok ? "✅ Backend Health OK" : "❌ Backend Health ERROR") + "</b>" +
-      "<p><b>URL:</b> " + escapeHtml(healthUrl) + "</p>" +
-      "<p><b>HTTP:</b> " + escapeHtml(String(r.status)) + "</p>" +
-      "<p><b>Резултат:</b> " + escapeHtml(data ? JSON.stringify(data) : (text || "Няма четим отговор.")) + "</p>" +
-      '<div id="providerHealth"></div>'; 
-    if (data?.providers) renderHealthProviders(data.providers);
-    logActivity("health", "Health result received", {httpStatus:r.status, ok:!!(r.ok && data?.ok), providers:data?.providers || null}, r.ok && data?.ok ? "info" : "error");
-  }catch(e){
-    logActivity("error", "Health request failed", {url:healthUrl, error:e.message || "Няма връзка."}, "error");
-    result.className = "health-result health-error";
-    result.innerHTML =
-      "<b>❌ Health заявката не може да бъде изпълнена</b>" +
-      "<p><b>URL:</b> " + escapeHtml(healthUrl) + "</p>" +
-      "<p><b>Грешка:</b> " + escapeHtml(e.message || "Няма връзка.") + "</p>";
-  }
-}
-
-async function showBackendDiagnostic(cards, backend, scanError){
-  logActivity("error", "Backend diagnostic started", {backend, scanError:scanError.message || "Неизвестна грешка"}, "error");
-  cards.innerHTML = '<div class="card loading">Проверявам състоянието на Backend-а…</div>';
-  const healthUrl = backend.replace(/\/$/,"") + "/api/health";
-
-  try {
-    const r = await fetch(healthUrl,{cache:"no-store"});
-    const text = await r.text();
-    let data = null;
-    try { data = JSON.parse(text); } catch {}
-
-    cards.innerHTML =
-      '<div class="card error">' +
-        '<b>' + (r.ok && data?.ok ? '⚠️ Backend-ът работи, но Update не е успешен' : '❌ Backend health check не премина') + '</b>' +
-        '<p><b>Health URL:</b> ' + escapeHtml(healthUrl) + '</p>' +
-        '<p><b>Health HTTP:</b> ' + escapeHtml(String(r.status)) + '</p>' +
-        '<p><b>Health резултат:</b> ' + escapeHtml(data ? JSON.stringify(data) : (text || "Няма четим отговор.")) + '</p>' +
-        '<p><b>Първоначална грешка:</b> ' + escapeHtml(scanError.message || "Неизвестна грешка") + '</p>' +
-      '</div>';
-  } catch (healthError) {
-    cards.innerHTML =
-      '<div class="card error">' +
-        '<b>❌ Backend-ът не може да бъде достигнат</b>' +
-        '<p><b>Health URL:</b> ' + escapeHtml(healthUrl) + '</p>' +
-        '<p><b>Health check:</b> ' + escapeHtml(healthError.message || "Няма връзка.") + '</p>' +
-        '<p><b>Първоначална грешка:</b> ' + escapeHtml(scanError.message || "Неизвестна грешка") + '</p>' +
-      '</div>';
-  }
-}
-
-function card(x,target,levels){
-  if (x.status && x.status !== "ok") return statusCard(x);
-  const entries=positionEntries(x.symbol);
-  const selected=state.selectedSymbols.includes(x.symbol);
-  const buy=additionalBuyState(x,levels);
-  const sortedLevels=levels.slice().sort((a,b)=>a-b);
-  let cls="wait";
-  if(buy.kind==="entry") cls="entry";
-  else if(sortedLevels.length&&buy.level!==null&&Number(x.drawdownPct)>-buy.level&&Number(x.drawdownPct)<=-(buy.level-1)) cls="watch";
-  const owned=entries.length>0;
-  const avgEntry=owned?weightedAverageEntry(entries):null;
-  const totalQuantity=owned?entries.reduce((sum,e)=>sum+Number(e.quantity||0),0):0;
-  const pnl=owned?(x.price/avgEntry-1)*100:null;
-  const pnlMoney=owned?(x.price-avgEntry)*totalQuantity:null;
-  const positionSignal=owned?(pnl>=target?"🔵 EXIT ZONE":"🟡 HOLD / WATCH"):"";
-  const positionReason=owned?("Позицията е на "+pnl.toFixed(2)+"% спрямо средната претеглена входна цена. Целта е +"+target+"%."):"";
-  const pnlClass=owned?(pnlMoney>0?"profit":pnlMoney<0?"loss":"neutral"):"";
-  const pnlIcon=owned?(pnlMoney>0?"↑":pnlMoney<0?"↓":"→"):"";
-  const pnlMoneyText=owned?((pnlMoney>=0?"+":"-")+"$"+Math.abs(pnlMoney).toFixed(2)):"";
-  let buySignal="⚪ WAIT";
-  let buyReason=buy.level!==null?"Следващо/активно ниво за допокупка: -"+buy.level+"%.":"Няма активно ниво за допокупка.";
-  if(buy.kind==="entry"){buySignal="🟢 ENTRY ZONE";buyReason="Достигнато ниво за допокупка: -"+buy.level+"% спрямо 60-дневния връх.";}
-  const finviz=finvizSummary(x.symbol);
-  const div=document.createElement("article");
-  div.className="card "+cls+(selected?" selected":"")+(owned?" owned-card":"");
-  div.dataset.symbolCard=x.symbol;
-  div.innerHTML=
-    '<div class="top"><label class="selection"><input type="checkbox" data-select="'+escapeHtml(x.symbol)+'"'+(selected?" checked":"")+'> Заявка при Update</label>'+(owned?'<div class="owned-position-card"><span class="owned-badge">МОЯ ПОЗИЦИЯ</span><span class="owned-pnl '+pnlClass+'"><span class="owned-pnl-icon">'+pnlIcon+'</span> '+pnlMoneyText+'</span></div>':'')+'</div>'+
-    '<div class="symbol">'+tickerLink(x.symbol)+' <span class="company-name">'+escapeHtml(companyName(x.symbol))+'</span></div>'+
-    '<div class="price">$'+num(x.price)+'</div>'+
-    (owned?'<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>'+positionSignal+'</b><div class="analysis-text">'+escapeHtml(positionReason)+'</div></div>':'')+
-    '<div class="analysis-block buy-analysis"><div class="analysis-label">Допокупка</div><b>'+buySignal+'</b><div class="analysis-text">'+escapeHtml(buyReason)+'</div></div>'+
-    '<div class="metrics"><div class="metric">60d high<b>$'+num(x.high60)+'</b></div><div class="metric">От връха<b>'+Number(x.drawdownPct).toFixed(2)+'%</b></div><div class="metric">Ден<b>'+(x.changePct>=0?"+":"")+Number(x.changePct).toFixed(2)+'%</b></div><div class="metric">Обновено<b>'+escapeHtml(x.date||"—")+'</b></div></div>'+
-    (owned?'<div class="position">Покупки: <b>'+entries.length+'</b> · Средна претеглена входна цена: <b>$'+num(avgEntry)+'</b> · Печалба/загуба: <b>'+pnl.toFixed(2)+'%</b></div>':(buy.level!==null&&Number.isFinite(Number(x.high60))?'<div class="position">Предполагаем вход: <b>$'+num(x.high60*(1-buy.level/100))+'</b> · ниво -'+buy.level+'%</div>':''))+
-    '<div class="profile-status">'+escapeHtml(finviz)+'</div><div class="data-source">Data: '+escapeHtml(providerName(x.source))+'</div>'+
-    (owned?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(x.symbol)+'">Продай позицията</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(x.symbol)+'">Скрий</button>');
-  div.querySelector("[data-select]").onchange=e=>setSelected(x.symbol,e.target.checked);
-  const sell=div.querySelector("[data-sell]"),hide=div.querySelector("[data-hide]");
-  if(sell)sell.onclick=()=>sellPosition(x.symbol);
-  if(hide)hide.onclick=()=>hideStock(x.symbol);
-  return div;
-}
-
-function positionEntries(symbol){
-  const raw=state.positions[symbol];
-  if(!Array.isArray(raw)) return [];
-  return raw.map(v=>{
-    if(typeof v==="number"&&Number.isFinite(v)&&v>0)return {price:v,quantity:1};
-    const price=Number(v?.price),quantity=Number(v?.quantity);
-    return Number.isFinite(price)&&price>0&&Number.isFinite(quantity)&&quantity>0?{price,quantity}:null;
-  }).filter(Boolean);
-}
-function weightedAverageEntry(entries){
-  if(!entries?.length)return null;
-  const totalQty=entries.reduce((sum,e)=>sum+Number(e.quantity||0),0);
-  if(!totalQty)return null;
-  return entries.reduce((sum,e)=>sum+Number(e.price)*Number(e.quantity),0)/totalQty;
-}
-function statusCard(x){
-  const selected = state.selectedSymbols.includes(x.symbol);
-  const owned = hasPosition(x.symbol);
-  const labels = {
-    rate_limited: "⚠️ API LIMIT",
-    no_data: "⚠️ NO DATA",
-    invalid_symbol: "❌ INVALID SYMBOL",
-    insufficient_history: "⚠️ INSUFFICIENT HISTORY",
-    error: "⚠️ DATA ERROR",
-    provider_unavailable: "⚠️ PROVIDER UNAVAILABLE"
-  };
-  const div=document.createElement("article");
-  div.className="card error" + (selected ? " selected" : "") + (owned ? " owned-card" : "");
-  div.dataset.symbolCard = x.symbol;
-  div.innerHTML =
-    '<div class="top">' +
-      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
-      '<div class="owned-badge">' + (owned ? "МОЯ ПОЗИЦИЯ" : "") + '</div>' +
-    '</div>' +
-    '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
-    '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
-    '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
-    (Array.isArray(x.attempts) ? '<div class="provider-attempts">' + x.attempts.map(a => '<div><b>' + escapeHtml(providerName(a.provider)) + ':</b> ' + escapeHtml(a.status) + (a.message ? ' — ' + escapeHtml(a.message) : '') + '</div>').join('') + '</div>' : '') +
-    '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
-    (owned ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(x.symbol) + '">Продай позицията</button>' :
-      '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>');
-  div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
-  const sell=div.querySelector("[data-sell]");
-  const hide=div.querySelector("[data-hide]");
-  if(sell) sell.onclick=()=>sellPosition(x.symbol);
-  if(hide) hide.onclick=()=>hideStock(x.symbol);
-  return div;
-}
-
-
-const num=x=>Number(x).toFixed(2);
-function companyName(symbol){ return DEFAULTS.companyNames[symbol] || symbol; }
-function providerName(source){
-  return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-}
-
-renderCards();
-+marketNumber(x.price)+'</div>'+
-          '<div class="market-metrics">'+
-            '<span>20d <b>'+marketPct(x.return20)+'</b></span>'+
-            '<span>60d <b>'+marketPct(x.return60)+'</b></span>'+
-            '<span>vs SMA20 <b>'+(Number.isFinite(Number(x.sma20))?(Number(x.price)>=Number(x.sma20)?"Above":"Below"):"—")+'</b></span>'+
-            '<span>vs SMA50 <b>'+(Number.isFinite(Number(x.sma50))?(Number(x.price)>=Number(x.sma50)?"Above":"Below"):"—")+'</b></span>'+
-            '<span>vs SMA200 <b>'+(Number.isFinite(Number(x.sma200))?(Number(x.price)>=Number(x.sma200)?"Above":"Below"):"—")+'</b></span>'+
-            '<span>Drawdown <b>'+marketPct(x.drawdownPct)+'</b></span>'+
-          '</div>'+
-        '</article>';
-      }).join("")+
-    '</div>'+
+    '<div class="market-grid">'+cards+'</div>'+
     '<div class="market-rule-note"><b>Логика v1:</b> RISK-ON = и SPY, и QQQ са над SMA50, с положителен 60d return и при наличен SMA200 са над него. RISK-OFF = огледното отрицателно условие. Всичко останало е NEUTRAL / TRANSITION. Това не отменя анализа на отделната акция.</div>'+
     '<div class="market-updated">Updated: '+escapeHtml(m.updatedAt ? new Date(m.updatedAt).toLocaleString() : "—")+'</div>';
 }
@@ -1267,9 +1026,9 @@ async function updateMarket(){
     if(!providers.length) throw new Error("Няма включен data provider.");
     const url=backend+"/api/market?providers="+encodeURIComponent(providers.join(","));
     logActivity("market","Market query started",{url,providers,symbols:["SPY","QQQ"]});
-    const r=await fetch(url,{cache:"no-store"});
-    const data=await r.json();
-    if(!r.ok) throw new Error(data?.error || ("HTTP "+r.status));
+    const response=await fetch(url,{cache:"no-store"});
+    const data=await response.json();
+    if(!response.ok) throw new Error(data?.error||("HTTP "+response.status));
     if(!Array.isArray(data.results)) throw new Error("Невалиден отговор от market endpoint.");
     updateUsagePanel(data.usage);
     const failed=data.results.filter(x=>x.status&&x.status!=="ok");
