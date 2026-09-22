@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.16.0
+Version 1.17.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -131,3 +131,12 @@ After deployment use **Check Health** and then the provider's **Test NVDA** butt
 - Fundamental data is informational and does not remove a watchlist stock when data is missing or incomplete.
 - Added separate Position and Additional Buy assessments. Additional Buy uses the drawdown levels independently of existing holdings.
 - Signal sorting continues to place active ENTRY ZONE setups first.
+
+
+## v1.17.0 positions and Finviz workflow
+- Watchlist is split into **Мои позиции** and **Други наблюдавани**; owned stocks always appear first regardless of the selected sort.
+- Owned cards have a prominent **МОЯ ПОЗИЦИЯ** marker and cannot be hidden/deleted; they have a **Продай позицията** action instead.
+- When no position is held, the Position analysis block is hidden; only the Additional Buy analysis remains.
+- Selling clears all stored entry prices for that symbol while keeping the stock in the watchlist.
+- Added a direct **Open Finviz** link next to **Import Finviz CSV**.
+- Added Finviz preset links for Growth + Trend, Growth + Quality, and Growth + Quality + Trend. The preset opens Finviz in a new tab; CSV export is performed from Finviz and availability depends on the Finviz plan.
