@@ -15,6 +15,7 @@
   </div>
   <div class="header-actions">
     <a href="settings.html" class="header-save settings-link">⚙ Settings</a>
+    <a href="help.html" class="header-save help-link">❓ Help</a>
     <div class="header-data-actions" aria-label="Local data">
       <button id="saveDataBtn" type="button" class="header-save">Save Data</button>
       <button id="loadDataBtn" type="button" class="header-save">Load Data</button>
@@ -46,6 +47,18 @@
       </select>
     </div>
     <div id="providerTestResult" class="provider-test-result" hidden></div>
+    <section class="market-regime-panel">
+      <div class="market-regime-head">
+        <div>
+          <h3>📊 Market Regime</h3>
+          <p class="hint">Пазарен контекст за SPY и QQQ. Това е контекст, не автоматичен BUY/SELL сигнал.</p>
+        </div>
+        <button id="updateMarketBtn" type="button" class="secondary">↻ Update Market</button>
+      </div>
+      <div id="marketRegime" class="market-regime-content">
+        <div class="market-empty">Няма заредени пазарни данни. Натисни <b>Update Market</b>.</div>
+      </div>
+    </section>
     <div id="cards" class="grid"></div>
   </section>
   <section class="hidden-section" hidden>
@@ -85,6 +98,6 @@
   </form>
 </dialog>
 <footer id="usageFooter"><div id="providerUsage" class="provider-usage"></div><div class="usage-legend">Броячите са локална оценка за заявките, направени през този браузър. Update/Test заявки се нулират в 00:00 местно време. При fallback една акция може да използва повече от една заявка. Twelve Data отчита своята дневна квота по UTC според плана.</div></footer>
-<script src="app.js?v=1.19.0"></script>
+<script src="app.js?v=1.21.0"></script>
 </body>
 </html>
