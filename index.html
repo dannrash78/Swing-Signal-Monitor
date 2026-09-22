@@ -10,7 +10,7 @@
 
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.15.0</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.16.0</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
   <div class="header-actions">
@@ -65,6 +65,8 @@
                 <option value="table">Таблица</option>
               </select>
             </label>
+            <button id="importFinvizBtn" type="button" class="header-save">Import Finviz CSV</button>
+            <input id="finvizFile" type="file" accept=".csv,text/csv" hidden>
           </div>
         </div>
         <p class="hint">Избери за кои акции да се направи заявка при <b>Update</b>. Изборът се запазва.</p>
@@ -105,6 +107,6 @@
   </form>
 </dialog>
 <footer id="usageFooter"><div id="providerUsage" class="provider-usage"></div><div class="usage-legend">Броячите са локална оценка за заявките, направени през този браузър. Update/Test заявки се нулират в 00:00 местно време. При fallback една акция може да използва повече от една заявка. Twelve Data отчита своята дневна квота по UTC според плана.</div></footer>
-<script src="app.js?v=1.15.0"></script>
+<script src="app.js?v=1.16.0"></script>
 </body>
 </html>
