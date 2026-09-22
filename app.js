@@ -309,9 +309,6 @@ function providerSecretNames(){
   });
   return names;
 }
-function providerSecretNamesParam(){
-  return encodeURIComponent(JSON.stringify(providerSecretNames()));
-}
 
 function renderProviderSettings(){
   Object.keys(DEFAULTS.providers).forEach(p => {
@@ -956,7 +953,7 @@ async function updateSelected(){
   try{
     const providers = enabledProviders();
     if (!providers.length) throw new Error("Няма включен data provider.");
-    const url = backend + "/api/scan?symbols=" + encodeURIComponent(selected.join(",")) + "&providers=" + encodeURIComponent(providers.join(",")) + "&secretNames=" + providerSecretNamesParam();
+    const url = backend + "/api/scan?symbols=" + encodeURIComponent(selected.join(",")) + "&providers=" + encodeURIComponent(providers.join(","));
     logActivity("query", "Update query started", {url, symbols:selected, providers});
     const r = await fetch(url, {cache:"no-store"});
     let data = null;
