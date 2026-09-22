@@ -88,6 +88,10 @@ Object.keys(state.positions).forEach(s => {
 Object.keys(DEFAULTS.providers).forEach(p => {
   state.providers[p] = { ...DEFAULTS.providers[p], ...(state.providers[p] || {}) };
 });
+state.secretNames = state.secretNames && typeof state.secretNames === "object" ? state.secretNames : {};
+Object.keys(DEFAULTS.providers).forEach(p => {
+  state.secretNames[p] = state.secretNames[p] || state.providers[p].secretName || DEFAULTS.providers[p].secretName;
+});
 
 // One-time migration: restore AMD only if it was actually missing.
 // IMPORTANT: never unhide an existing AMD entry. From this point onward,
@@ -297,6 +301,17 @@ $("stockForm").onsubmit = e => {
 };
 
 function save(){ localStorage.setItem("swingState", JSON.stringify(state)); }
+function providerSecretNames(){
+  const names = {};
+  Object.keys(DEFAULTS.providers).forEach(p => {
+    const value = String(state.secretNames?.[p] || state.providers?.[p]?.secretName || DEFAULTS.providers[p].secretName).trim().toUpperCase();
+    names[p] = /^[A-Z][A-Z0-9_]{0,62}$/.test(value) ? value : DEFAULTS.providers[p].secretName;
+  });
+  return names;
+}
+function providerSecretNamesParam(){
+  return encodeURIComponent(JSON.stringify(providerSecretNames()));
+}
 
 function renderProviderSettings(){
   Object.keys(DEFAULTS.providers).forEach(p => {
@@ -504,11 +519,13 @@ $("clearLog").onclick = () => {
 async function exportLocalData(){
   const payload={
     format:"Swing Signal Monitor local backup",
-    version:"1.19.0",
+    version:"1.20.0",
     exportedAt:new Date().toISOString(),
+    backendUrl:localStorage.getItem("swingBackend") || "",
     state:JSON.parse(JSON.stringify(state)),
     targetPct:String(state.target),
-    levels:state.levels.join(",")
+    levels:state.levels.join(","),
+    secretNames:providerSecretNames()
   };
   const json=JSON.stringify(payload,null,2);
   const fileName="swing-signal-monitor-backup-" + localUsageDate() + ".json";
@@ -555,7 +572,9 @@ function normalizeLoadedState(raw){
     groupSettings:raw.groupSettings && typeof raw.groupSettings==="object" ? raw.groupSettings : {},
     target:Number.isFinite(Number(raw.target)) ? Number(raw.target) : DEFAULTS.target,
     levels:Array.isArray(raw.levels) ? raw.levels.map(Number).filter(x=>Number.isFinite(x)&&x>0) : DEFAULTS.levels.slice(),
-    providers:raw.providers && typeof raw.providers==="object" ? raw.providers : {}
+    providers:raw.providers && typeof raw.providers==="object" ? raw.providers : {},
+    fundamentals:raw.fundamentals && typeof raw.fundamentals==="object" ? raw.fundamentals : {},
+    secretNames:raw.secretNames && typeof raw.secretNames==="object" ? raw.secretNames : {}
   };
   if(!next.symbols.length) next.symbols=DEFAULTS.symbols.slice();
   next.symbols=[...new Set(next.symbols)];
@@ -579,6 +598,9 @@ function normalizeLoadedState(raw){
   if(!next.levels.length)next.levels=DEFAULTS.levels.slice();
   Object.keys(DEFAULTS.providers).forEach(p=>{
     next.providers[p]={...DEFAULTS.providers[p],...(next.providers[p]||{})};
+    next.secretNames[p]=String(next.secretNames[p] || next.providers[p].secretName || DEFAULTS.providers[p].secretName).trim().toUpperCase();
+    if(!/^[A-Z][A-Z0-9_]{0,62}$/.test(next.secretNames[p])) next.secretNames[p]=DEFAULTS.providers[p].secretName;
+    next.providers[p].secretName=next.secretNames[p];
   });
   return next;
 }
@@ -593,10 +615,18 @@ async function importLocalData(file){
 
   state=loadedState;
   // Backend URL is intentionally NOT imported: every user must configure their own backend.
-  const backend=localStorage.getItem("swingBackend") || "";
+  const backend=String(payload.backendUrl || "").trim().replace(/\/$/,"");
+  if(backend) localStorage.setItem("swingBackend",backend); else localStorage.removeItem("swingBackend");
   state.target=Number.isFinite(Number(payload.targetPct)) ? Number(payload.targetPct) : state.target;
   state.levels=String(payload.levels ?? state.levels.join(",")).split(",").map(Number).filter(x=>Number.isFinite(x)&&x>0);
   if(!state.levels.length)state.levels=DEFAULTS.levels.slice();
+  state.fundamentals=state.fundamentals||{};
+  state.secretNames=state.secretNames||{};
+  Object.keys(DEFAULTS.providers).forEach(p=>{
+    state.secretNames[p]=String(state.secretNames[p] || state.providers[p]?.secretName || DEFAULTS.providers[p].secretName).trim().toUpperCase();
+    if(!/^[A-Z][A-Z0-9_]{0,62}$/.test(state.secretNames[p])) state.secretNames[p]=DEFAULTS.providers[p].secretName;
+    state.providers[p].secretName=state.secretNames[p];
+  });
   save();
   renderProviderSettings();
   renderCards();
@@ -883,7 +913,7 @@ async function testProvider(provider){
   result.innerHTML = "<b>Тест:</b> " + escapeHtml(providerName(provider)) + " / NVDA…";
   logActivity("provider_test", "Query started", {provider, symbol:"NVDA"});
   try{
-    const r = await fetch(backend + "/api/test?provider=" + encodeURIComponent(provider) + "&symbol=NVDA",{cache:"no-store"});
+    const r = await fetch(backend + "/api/test?provider=" + encodeURIComponent(provider) + "&symbol=NVDA&secretNames=" + providerSecretNamesParam(),{cache:"no-store"});
     const data = await r.json();
     updateUsagePanel(data.usage);
     logActivity("provider_test", data.ok ? "Result OK" : "Result/Error", {provider, symbol:"NVDA", status:data.status, message:data.message || data.error || null, result:data.result || null}, data.ok ? "info" : "error");
@@ -926,7 +956,7 @@ async function updateSelected(){
   try{
     const providers = enabledProviders();
     if (!providers.length) throw new Error("Няма включен data provider.");
-    const url = backend + "/api/scan?symbols=" + encodeURIComponent(selected.join(",")) + "&providers=" + encodeURIComponent(providers.join(","));
+    const url = backend + "/api/scan?symbols=" + encodeURIComponent(selected.join(",")) + "&providers=" + encodeURIComponent(providers.join(",")) + "&secretNames=" + providerSecretNamesParam();
     logActivity("query", "Update query started", {url, symbols:selected, providers});
     const r = await fetch(url, {cache:"no-store"});
     let data = null;
@@ -990,7 +1020,8 @@ async function checkHealth(){
   result.innerHTML = "<b>Проверявам Health…</b><p>URL: " + escapeHtml(healthUrl) + "</p>";
 
   try{
-    const r = await fetch(healthUrl,{cache:"no-store"});
+    const healthRequestUrl = healthUrl + "?secretNames=" + providerSecretNamesParam();
+    const r = await fetch(healthRequestUrl,{cache:"no-store"});
     const text = await r.text();
     let data = null;
     try { data = JSON.parse(text); } catch {}
