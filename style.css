@@ -1257,3 +1257,14 @@ main{padding-bottom:40px}
 }
 .help-table th{background:#f3f4f6;font-weight:800}
 @media(max-width:700px){.help-card{padding:16px}}
+
+/* v1.21.1 — individual stock entry */
+.dialog-hint{
+  margin:4px 0 0;
+  color:#6b7280;
+  font-size:12px;
+  line-height:1.45;
+}
+@media(max-width:700px){
+  .toolbar-actions{flex-wrap:wrap;justify-content:flex-start}
+}
