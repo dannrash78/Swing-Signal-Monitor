@@ -19,7 +19,7 @@ export default {
         ok: true,
         service: "swing-signal-backend",
         version: "1.10.0",
-        providers: await providerHealth(env)
+        providers: await providerHealth(url, env)
       });
     }
 
@@ -40,15 +40,16 @@ export default {
       ? configured.split(",").map(x => x.trim().toLowerCase()).filter(x => PROVIDERS.includes(x))
       : PROVIDERS
     ).filter((p, i, a) => a.indexOf(p) === i);
+    const secretNames = parseSecretNames(url);
 
     if (!symbols.length) return json({ error: "No symbols" }, 400);
     if (!providers.length) return json({ error: "No enabled providers" }, 400);
 
     const results = [];
     const usage = {
-      alphavantage: { configured: !!env.ALPHA_VANTAGE_KEY, apiCalls: 0, remaining: null },
-      twelvedata: { configured: !!env.TWELVE_DATA_API_KEY, apiCalls: 0, minuteCreditsLeft: null, dailyLimit: 800 },
-      finnhub: { configured: !!env.FINNHUB_API_KEY, apiCalls: 0, remaining: null }
+      alphavantage: { configured: !!getSecret(env, "alphavantage", secretNames), apiCalls: 0, remaining: null },
+      twelvedata: { configured: !!getSecret(env, "twelvedata", secretNames), apiCalls: 0, minuteCreditsLeft: null, dailyLimit: 800 },
+      finnhub: { configured: !!getSecret(env, "finnhub", secretNames), apiCalls: 0, remaining: null }
     };
 
     for (const symbol of symbols) {
@@ -61,12 +62,12 @@ export default {
       let resolved = null;
       const attempts = [];
       for (const provider of providers) {
-        if (!isConfigured(provider, env)) {
+        if (!isConfigured(provider, env, secretNames)) {
           attempts.push({ provider, status: "not_configured" });
           continue;
         }
         try {
-          const data = await fetchProvider(provider, symbol, env, usage);
+          const data = await fetchProvider(provider, symbol, env, usage, secretNames);
           attempts.push({ provider, status: data.result ? "ok" : (data.rateLimited ? "rate_limited" : (data.permanentError ? "error" : "no_valid_data")), message: data.message || null });
           if (data.rateLimited) continue;
           if (data.result) {
@@ -115,17 +116,18 @@ async function checkProviderNetwork(url) {
 
 async function testProviderRequest(url, env) {
   const provider = (url.searchParams.get("provider") || "").toLowerCase();
+  const secretNames = parseSecretNames(url);
   const symbol = (url.searchParams.get("symbol") || "NVDA").trim().toUpperCase();
   if (!PROVIDERS.includes(provider)) return json({ ok: false, error: "Unknown provider" }, 400);
-  if (!isConfigured(provider, env)) return json({ ok: false, provider, symbol, status: "not_configured", error: "Provider API key is not configured." }, 200);
+  if (!isConfigured(provider, env, secretNames)) return json({ ok: false, provider, symbol, status: "not_configured", error: "Provider API key is not configured." }, 200);
 
   const usage = {
-    alphavantage: { configured: !!env.ALPHA_VANTAGE_KEY, apiCalls: 0 },
-    twelvedata: { configured: !!env.TWELVE_DATA_API_KEY, apiCalls: 0, minuteCreditsLeft: null, dailyLimit: 800 },
-    finnhub: { configured: !!env.FINNHUB_API_KEY, apiCalls: 0 }
+    alphavantage: { configured: !!getSecret(env, "alphavantage", secretNames), apiCalls: 0 },
+    twelvedata: { configured: !!getSecret(env, "twelvedata", secretNames), apiCalls: 0, minuteCreditsLeft: null, dailyLimit: 800 },
+    finnhub: { configured: !!getSecret(env, "finnhub", secretNames), apiCalls: 0 }
   };
   try {
-    const data = await fetchProvider(provider, symbol, env, usage);
+    const data = await fetchProvider(provider, symbol, env, usage, secretNames);
     return json({
       ok: !!data.result,
       provider,
@@ -140,30 +142,49 @@ async function testProviderRequest(url, env) {
   }
 }
 
-async function providerHealth(env) {
+async function providerHealth(url, env) {
+  const secretNames = parseSecretNames(url);
   const checks = await Promise.all([
     checkProviderNetwork("https://www.alphavantage.co/"),
     checkProviderNetwork("https://api.twelvedata.com/"),
     checkProviderNetwork("https://finnhub.io/")
   ]);
   return {
-    alphavantage: { configured: !!env.ALPHA_VANTAGE_KEY, network: checks[0] },
-    twelvedata: { configured: !!env.TWELVE_DATA_API_KEY, network: checks[1] },
-    finnhub: { configured: !!env.FINNHUB_API_KEY, network: checks[2] }
+    alphavantage: { configured: !!getSecret(env, "alphavantage", secretNames), network: checks[0] },
+    twelvedata: { configured: !!getSecret(env, "twelvedata", secretNames), network: checks[1] },
+    finnhub: { configured: !!getSecret(env, "finnhub", secretNames), network: checks[2] }
   };
 }
 
 
-function isConfigured(provider, env) {
-  return provider === "alphavantage" ? !!env.ALPHA_VANTAGE_KEY
-    : provider === "twelvedata" ? !!env.TWELVE_DATA_API_KEY
-    : !!env.FINNHUB_API_KEY;
+function parseSecretNames(url) {
+  const names = { ...DEFAULT_SECRET_NAMES };
+  try {
+    const raw = url.searchParams.get("secretNames");
+    if (!raw) return names;
+    const parsed = JSON.parse(raw);
+    for (const provider of PROVIDERS) {
+      const candidate = String(parsed?.[provider] || "").trim().toUpperCase();
+      if (/^[A-Z][A-Z0-9_]{0,62}$/.test(candidate)) names[provider] = candidate;
+    }
+  } catch {}
+  return names;
 }
 
-async function fetchProvider(provider, symbol, env, usage) {
-  if (provider === "alphavantage") return fetchAlphaVantage(symbol, env.ALPHA_VANTAGE_KEY, usage);
-  if (provider === "twelvedata") return fetchTwelveData(symbol, env.TWELVE_DATA_API_KEY, usage);
-  return fetchFinnhub(symbol, env.FINNHUB_API_KEY, usage);
+function getSecret(env, provider, secretNames) {
+  const preferred = secretNames?.[provider] || DEFAULT_SECRET_NAMES[provider];
+  return env[preferred] || env[DEFAULT_SECRET_NAMES[provider]] || "";
+}
+
+function isConfigured(provider, env, secretNames) {
+  return !!getSecret(env, provider, secretNames);
+}
+
+async function fetchProvider(provider, symbol, env, usage, secretNames) {
+  const key = getSecret(env, provider, secretNames);
+  if (provider === "alphavantage") return fetchAlphaVantage(symbol, key, usage);
+  if (provider === "twelvedata") return fetchTwelveData(symbol, key, usage);
+  return fetchFinnhub(symbol, key, usage);
 }
 
 async function fetchAlphaVantage(symbol, key, usage) {
