@@ -1017,8 +1017,7 @@ async function checkHealth(){
   result.innerHTML = "<b>Проверявам Health…</b><p>URL: " + escapeHtml(healthUrl) + "</p>";
 
   try{
-    const healthRequestUrl = healthUrl + "?secretNames=" + providerSecretNamesParam();
-    const r = await fetch(healthRequestUrl,{cache:"no-store"});
+    const r = await fetch(healthUrl,{cache:"no-store"});
     const text = await r.text();
     let data = null;
     try { data = JSON.parse(text); } catch {}
