@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.18.0
+Version 1.19.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -148,3 +148,13 @@ After deployment use **Check Health** and then the provider's **Test NVDA** butt
 - Settings page explains the purpose of Backend URL, provider enablement, and priority.
 - Main page keeps strategy settings (exit target and drawdown levels) separate from connection/provider configuration.
 - Fixed the existing table-view path so selecting **Таблица** actually renders the table view.
+
+
+## v1.19.0
+- The two watchlist groups have independent **Update selection, sorting, and view** controls.
+- **Мои позиции** and **Други наблюдавани** can independently use Cards or Table view and independent sort order.
+- Owned-position cards show profit/loss against the **weighted average entry price** based on purchase price and quantity.
+- Existing legacy numeric entry prices are migrated as quantity 1.
+- Every ticker is a clickable link to its Finviz daily stock chart.
+- Strategy settings (exit target and drawdown levels) are moved to **Settings** together with Backend URL and Data Sources.
+- Settings button text is explicitly white for readability on the dark header.
