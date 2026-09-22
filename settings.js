@@ -69,3 +69,13 @@ $("saveStrategy").onclick=saveStrategy;
 $("saveProviders").onclick=saveProviders;
 $("backBtn").onclick=()=>{window.location.href="index.html";};
 loadSettings();
+
+document.querySelectorAll(".copy-secret").forEach(btn=>{
+  btn.onclick=async()=>{
+    try{
+      await navigator.clipboard.writeText(btn.dataset.copy);
+      const old=btn.textContent; btn.textContent="Копирано";
+      setTimeout(()=>btn.textContent=old,1200);
+    }catch(e){}
+  };
+});
