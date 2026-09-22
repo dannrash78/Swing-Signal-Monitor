@@ -574,3 +574,181 @@ main{padding-bottom:40px}
  .provider-minimal-row>label:not(.provider-name){justify-content:space-between}
  .key-status{padding-left:25px}
 }
+
+/* v1.19.2 — Settings: keep the main site design, compact and aligned */
+.settings-page main.settings-minimal{
+  max-width:980px;
+  margin:0 auto;
+  padding:22px 20px 40px;
+}
+.settings-minimal .settings-card{
+  background:#fff;
+  border-radius:14px;
+  border:0;
+  padding:18px;
+  margin:0 0 18px;
+  box-shadow:0 2px 12px #00000010;
+}
+.settings-minimal .settings-row{
+  display:grid;
+  grid-template-columns:minmax(230px,1fr) minmax(520px,1.45fr);
+  align-items:center;
+  gap:28px;
+}
+.settings-minimal .settings-card h2{
+  margin:0 0 4px;
+  font-size:17px;
+}
+.settings-minimal .settings-card p{
+  margin:0;
+  color:#6b7280;
+  font-size:12px;
+  line-height:1.4;
+}
+.settings-minimal .settings-inline{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:end;
+  gap:10px;
+}
+.settings-minimal .settings-inline input,
+.settings-minimal .settings-inline select{
+  height:38px;
+  border:1px solid #d4dae3;
+  border-radius:8px;
+  padding:8px 10px;
+  background:#fff;
+  color:#111827;
+}
+.settings-minimal #backendUrl{
+  width:100%;
+  min-width:0;
+}
+.settings-minimal .settings-inline button,
+.settings-minimal .settings-card-actions button{
+  height:38px;
+  min-width:104px;
+}
+.settings-minimal .strategy-inline{
+  grid-template-columns:110px 150px auto;
+}
+.settings-minimal .strategy-inline label{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  margin:0;
+  color:#374151;
+  font-size:11px;
+  font-weight:700;
+}
+.settings-minimal .strategy-inline input{
+  width:100%;
+  min-width:0;
+}
+.settings-minimal .settings-card-head{
+  margin-bottom:12px;
+}
+.settings-minimal .provider-minimal-list{
+  margin:0;
+  border-top:1px solid #e5e7eb;
+}
+.settings-minimal .provider-minimal-row{
+  display:grid;
+  grid-template-columns:minmax(230px,1fr) 150px minmax(260px,1.15fr);
+  align-items:center;
+  gap:18px;
+  min-height:52px;
+  padding:9px 0;
+  border-bottom:1px solid #eef0f3;
+}
+.settings-minimal .provider-name{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+  font-size:13px;
+}
+.settings-minimal .provider-name input{
+  width:17px;
+  height:17px;
+  margin:0;
+  accent-color:#2563eb;
+}
+.settings-minimal .provider-minimal-row>label:not(.provider-name){
+  display:grid;
+  grid-template-columns:70px 58px;
+  align-items:center;
+  gap:8px;
+  margin:0;
+  font-size:11px;
+  font-weight:700;
+  color:#4b5563;
+}
+.settings-minimal .provider-minimal-row select{
+  width:58px;
+  height:32px;
+  border:1px solid #d4dae3;
+  border-radius:7px;
+  background:#fff;
+  color:#111827;
+}
+.settings-minimal .key-status{
+  display:flex;
+  align-items:center;
+  min-height:32px;
+  padding:0 10px;
+  border:1px solid #e5e7eb;
+  border-radius:7px;
+  background:#f8fafc;
+  color:#6b7280;
+  font-size:11px;
+}
+.settings-minimal .settings-card-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:14px;
+}
+.settings-minimal .settings-note{
+  margin:12px 0 0!important;
+  padding-top:10px;
+  border-top:1px solid #eef0f3;
+  color:#6b7280!important;
+  font-size:11px!important;
+}
+.settings-minimal .settings-message{
+  display:block;
+  margin-top:8px;
+  color:#166534;
+  font-size:12px;
+  font-weight:700;
+}
+@media(max-width:850px){
+  .settings-minimal .settings-row{
+    grid-template-columns:1fr;
+    gap:14px;
+  }
+  .settings-minimal .provider-minimal-row{
+    grid-template-columns:minmax(200px,1fr) 130px minmax(220px,1fr);
+  }
+}
+@media(max-width:650px){
+  .settings-minimal .settings-inline,
+  .settings-minimal .strategy-inline{
+    grid-template-columns:1fr;
+  }
+  .settings-minimal .settings-inline button{
+    width:100%;
+  }
+  .settings-minimal .provider-minimal-row{
+    grid-template-columns:1fr;
+    gap:8px;
+    padding:12px 0;
+  }
+  .settings-minimal .provider-minimal-row>label:not(.provider-name){
+    grid-template-columns:70px 58px;
+  }
+  .settings-minimal .key-status{
+    width:100%;
+  }
+}
