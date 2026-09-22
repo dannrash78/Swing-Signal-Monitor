@@ -22,32 +22,50 @@ function loadSettings(){
   });
 }
 
-function saveSettings(){
-  const state = JSON.parse(localStorage.getItem("swingState") || "null") || {};
-  state.providers = state.providers || {};
-
-  Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
-    state.providers[p] = {
-      ...DEFAULT_PROVIDERS[p],
-      ...(state.providers[p] || {}),
-      enabled: $("provider-"+p+"-enabled").checked,
-      priority: Number($("provider-"+p+"-priority").value) || DEFAULT_PROVIDERS[p].priority
-    };
-  });
-
-  const backend = $("backendUrl").value.trim().replace(/\/$/,"");
-  localStorage.setItem("swingBackend", backend);
-  localStorage.setItem("swingState", JSON.stringify(state));
-
-  $("saveMessage").hidden = false;
-  $("saveMessage").textContent = "✓ Настройките са запазени в този браузър.";
+function readState(){ return JSON.parse(localStorage.getItem("swingState") || "null") || {}; }
+function showMessage(id,text){
+  const el=$(id); if(!el)return;
+  el.hidden=false; el.textContent="✓ "+text;
+  setTimeout(()=>{el.hidden=true;},2500);
 }
-
-$("settingsForm").addEventListener("submit",e=>{
-  e.preventDefault();
-  saveSettings();
-});
-
-$("backBtn").onclick=()=>{ window.location.href="index.html"; };
-
+function loadSettings(){
+  const state=readState();
+  state.providers=state.providers||{};
+  Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
+    state.providers[p]={...DEFAULT_PROVIDERS[p],...(state.providers[p]||{})};
+    $("provider-"+p+"-enabled").checked=!!state.providers[p].enabled;
+    $("provider-"+p+"-priority").value=String(state.providers[p].priority);
+  });
+  $("backendUrl").value=localStorage.getItem("swingBackend")||"";
+  $("targetPct").value=String(Number.isFinite(Number(state.target))?state.target:10);
+  $("levels").value=Array.isArray(state.levels)&&state.levels.length?state.levels.join(","):"5,8,10";
+}
+function saveBackend(){
+  const backend=$("backendUrl").value.trim().replace(/\/$/,"");
+  localStorage.setItem("swingBackend",backend);
+  showMessage("backendMessage","Backend URL е запазен.");
+}
+function saveStrategy(){
+  const state=readState();
+  const target=Number($("targetPct").value);
+  const levels=$("levels").value.split(",").map(Number).filter(x=>Number.isFinite(x)&&x>0);
+  state.target=Number.isFinite(target)&&target>0?target:10;
+  state.levels=levels.length?levels:[5,8,10];
+  localStorage.setItem("swingState",JSON.stringify(state));
+  showMessage("strategyMessage","Стратегията е запазена.");
+}
+function saveProviders(){
+  const state=readState(); state.providers=state.providers||{};
+  Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
+    state.providers[p]={...DEFAULT_PROVIDERS[p],...(state.providers[p]||{}),
+      enabled:$("provider-"+p+"-enabled").checked,
+      priority:Number($("provider-"+p+"-priority").value)||DEFAULT_PROVIDERS[p].priority};
+  });
+  localStorage.setItem("swingState",JSON.stringify(state));
+  showMessage("providersMessage","Data Sources са запазени.");
+}
+$("saveBackend").onclick=saveBackend;
+$("saveStrategy").onclick=saveStrategy;
+$("saveProviders").onclick=saveProviders;
+$("backBtn").onclick=()=>{window.location.href="index.html";};
 loadSettings();
