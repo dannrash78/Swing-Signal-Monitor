@@ -35,6 +35,17 @@
       </div>
       <div class="toolbar-actions"><button id="hiddenToggleBtn" class="secondary">Невидим списък (0)</button><button id="addBtn">+ Въведи позиция</button></div>
     </div>
+    <div class="watchlist-tools">
+      <input id="finvizFile" type="file" accept=".csv,text/csv" hidden>
+      <button id="importFinvizBtn" type="button" class="secondary">Import Finviz CSV</button>
+      <button id="openFinvizPresetBtn" type="button" class="secondary">Open Finviz</button>
+      <select id="finvizPreset" class="header-preset" aria-label="Finviz preset">
+        <option value="growthTrend">Finviz preset: Growth + Trend</option>
+        <option value="growthQuality">Growth + Quality</option>
+        <option value="full">Growth + Quality + Trend</option>
+      </select>
+    </div>
+    <div id="providerTestResult" class="provider-test-result" hidden></div>
     <div id="cards" class="grid"></div>
   </section>
   <section class="hidden-section" hidden>
