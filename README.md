@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.15.0
+Version 1.16.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -121,3 +121,13 @@ After deployment use **Check Health** and then the provider's **Test NVDA** butt
 - Enter the URL of your own Cloudflare Worker before using Update/Health/Test.
 - This prevents a new user from accidentally using another user's Worker and provider secrets.
 - Existing users who already saved a backend URL in their browser keep it through localStorage.
+
+
+## v1.16.0 strategy adaptation
+- Added a non-destructive Finviz fundamental layer with import from CSV.
+- Quality thresholds: D/E ≤ 1.0 and ROE ≥ 10%.
+- Growth thresholds: EPS Q/Q ≥ 10%, Sales Q/Q ≥ 10%, EPS Y/Y TTM ≥ 10%, Sales Y/Y TTM ≥ 10%.
+- Trend check: Price > SMA200 when both values are available.
+- Fundamental data is informational and does not remove a watchlist stock when data is missing or incomplete.
+- Added separate Position and Additional Buy assessments. Additional Buy uses the drawdown levels independently of existing holdings.
+- Signal sorting continues to place active ENTRY ZONE setups first.
