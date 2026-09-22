@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Swing Signal Monitor — Help</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="help-page">
+<header>
+  <div>
+    <h1>❓ Swing Signal Monitor <span class="version">Help</span></h1>
+    <p>Как работи инструментът и как да се четат резултатите</p>
+  </div>
+  <div class="header-actions">
+    <a href="index.html" class="header-save help-link">← Към Watchlist</a>
+  </div>
+</header>
+
+<main class="help-main">
+  <section class="help-card">
+    <h2>1. За какво е този инструмент</h2>
+    <p>Swing Signal Monitor е информационен инструмент за наблюдение на акции и swing setups. Той използва ценови данни, сравнява текущата цена с нива на спад спрямо 60-дневен връх, показва отделно анализа на вече притежавана позиция и дава фундаментален контекст чрез Finviz import.</p>
+    <p><b>Важно:</b> инструментът не изпълнява сделки и не взема автоматично инвестиционното решение. Сигналът показва какво вижда заложената логика; решението дали, кога и с какъв размер да се търгува остава човешко решение.</p>
+  </section>
+
+  <section class="help-card">
+    <h2>2. Основен работен процес</h2>
+    <ol>
+      <li>Настрой Backend URL и Data Sources в <b>Settings</b>.</li>
+      <li>Избери акциите за заявка с отметката <b>Заявка при Update</b>.</li>
+      <li>Натисни <b>Update Market</b>, за да видиш пазарния контекст на SPY и QQQ.</li>
+      <li>Натисни <b>Update</b>, за да обновиш избраните акции.</li>
+      <li>Чети първо пазарния режим, после конкретната акция, след това позицията/допокупката и накрая Finviz контекста.</li>
+      <li>Използвай <b>Save Data</b> за локален backup на конфигурацията и данните.</li>
+    </ol>
+  </section>
+
+  <section class="help-card">
+    <h2>3. Market Regime</h2>
+    <p>Market Regime е отделен слой за <b>пазарен контекст</b>. Той използва SPY и QQQ. Основната логика във v1 е:</p>
+    <p><b>RISK-ON:</b> и SPY, и QQQ са над SMA50 и имат положителен 60-дневен резултат; когато има наличен SMA200, цената трябва да е и над него.</p>
+    <p><b>RISK-OFF:</b> и SPY, и QQQ са под SMA50 и имат отрицателен 60-дневен резултат; когато има наличен SMA200, цената трябва да е и под него.</p>
+    <p><b>NEUTRAL / TRANSITION:</b> условията са смесени или двата индекса не са в един и същ режим.</p>
+    <p>SMA20 се показва като краткосрочен контекст. Ако един provider не разполага с достатъчно история за SMA200, инструментът не измисля стойност и маркира потвърждението като ограничено.</p>
+    <p><b>Как да го използваш:</b> Risk-On означава, че пазарният фон не противоречи на long swing setup. Risk-Off означава, че pullback-ите трябва да се разглеждат в контекста на по-широк пазарен натиск. Нито едното не е самостоятелен BUY/SELL сигнал.</p>
+  </section>
+
+  <section class="help-card">
+    <h2>4. Сигнали на акцията</h2>
+    <h3>🟢 ENTRY ZONE</h3>
+    <p>Цената е достигнала едно от зададените нива на спад спрямо 60-дневния връх. Например при нива 5,8,10% това означава, че е достигнат поне един праг.</p>
+    <h3>🟡 WATCH</h3>
+    <p>Цената е близо до следващо зададено ниво, но още не го е достигнала.</p>
+    <h3>⚪ WAIT</h3>
+    <p>Няма достигнато активно ниво за допокупка.</p>
+    <h3>🔵 EXIT ZONE</h3>
+    <p>При въведена позиция P/L спрямо средната претеглена входна цена е достигнал зададената цел.</p>
+  </section>
+
+  <section class="help-card">
+    <h2>5. „Моя позиция“</h2>
+    <p>Покупките се пазят като цена и количество. Средната входна цена е претеглена спрямо количеството.</p>
+    <p class="formula">(Current Price − Weighted Average Entry) × Total Quantity</p>
+    <p>Полученият паричен P/L е нереализиран. Комисиони, данъци и валутни разлики не са включени.</p>
+  </section>
+
+  <section class="help-card">
+    <h2>6. Finviz анализ</h2>
+    <p>Finviz е втори слой за фундаментален контекст, а не самият swing сигнал. Импортираните стойности се проверяват по заложени критерии като D/E, ROE, EPS/Sales growth и Price &gt; SMA200.</p>
+    <p><b>PASS / REVIEW / INCOMPLETE</b> описват качеството и пълнотата на наличния импорт. Те не прогнозират бъдеща доходност.</p>
+  </section>
+
+  <section class="help-card">
+    <h2>7. Settings и Data Sources</h2>
+    <p><b>Backend:</b> адресът на Cloudflare Worker.</p>
+    <p><b>Стратегия:</b> Target и drawdown levels.</p>
+    <p><b>Data Sources:</b> включване/изключване и приоритет на доставчиците.</p>
+    <p><b>Secret / API key name:</b> име на Cloudflare Worker secret binding. Самата стойност на ключа не се съхранява във frontend-а.</p>
+  </section>
+
+  <section class="help-card">
+    <h2>8. Как да четеш setup-а</h2>
+    <ol>
+      <li><b>Първо пазара:</b> Risk-On, Neutral или Risk-Off?</li>
+      <li><b>После акцията:</b> ENTRY, WATCH или WAIT?</li>
+      <li><b>После контекста:</b> trend и Finviz профил.</li>
+      <li><b>После риска:</b> в следващата аналитична стъпка ще добавим stop, risk per share, position size и Risk/Reward.</li>
+    </ol>
+    <p>Идеята е да не взимаш решение само от едно число като „-8%“.</p>
+  </section>
+
+  <section class="help-card">
+    <h2>9. Data, cache и ограничения</h2>
+    <p>Market data се заявяват през Cloudflare Worker. Приоритетът на Data Sources определя кой provider се пробва първо, а при проблем може да се използва fallback. Успешните market резултати се кешират за 6 часа.</p>
+    <p>Всеки резултат показва реалния provider. Ако историята не е достатъчна за дадена метрика, тя остава недостъпна вместо да бъде запълвана с предположение.</p>
+  </section>
+
+  <section class="help-card">
+    <h2>10. Какво следва</h2>
+    <p>След Market Regime следва отделен <b>Risk Analysis</b> слой. Целта е постепенно да научим инструмента да показва не само къде има setup, а и какъв капиталов риск стои зад него.</p>
+  </section>
+</main>
+</body>
+</html>
