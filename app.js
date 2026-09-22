@@ -70,6 +70,21 @@ state.sortOrder = ["alpha","signal","priceDesc","priceAsc"].includes(state.sortO
 state.viewMode = state.viewMode === "table" ? "table" : "cards";
 state.fundamentals = state.fundamentals && typeof state.fundamentals === "object" ? state.fundamentals : {};
 state.providers = state.providers || {};
+state.groupSettings = state.groupSettings && typeof state.groupSettings === "object" ? state.groupSettings : {};
+const legacySort = ["alpha","signal","priceDesc","priceAsc"].includes(state.sortOrder) ? state.sortOrder : "alpha";
+const legacyView = state.viewMode === "table" ? "table" : "cards";
+state.groupSettings.owned = { sortOrder:["alpha","signal","priceDesc","priceAsc"].includes(state.groupSettings.owned?.sortOrder)?state.groupSettings.owned.sortOrder:legacySort, viewMode:state.groupSettings.owned?.viewMode==="table"?"table":legacyView };
+state.groupSettings.other = { sortOrder:["alpha","signal","priceDesc","priceAsc"].includes(state.groupSettings.other?.sortOrder)?state.groupSettings.other.sortOrder:legacySort, viewMode:state.groupSettings.other?.viewMode==="table"?"table":legacyView };
+state.target = Number.isFinite(Number(state.target)) ? Number(state.target) : DEFAULTS.target;
+state.levels = Array.isArray(state.levels) ? state.levels.map(Number).filter(x=>Number.isFinite(x)&&x>0) : DEFAULTS.levels.slice();
+if (!state.levels.length) state.levels = DEFAULTS.levels.slice();
+Object.keys(state.positions).forEach(s => {
+  if (Array.isArray(state.positions[s])) state.positions[s]=state.positions[s].map(v=>{
+    if(typeof v==="number"&&Number.isFinite(v)&&v>0)return {price:v,quantity:1};
+    const price=Number(v?.price), quantity=Number(v?.quantity);
+    return Number.isFinite(price)&&price>0&&Number.isFinite(quantity)&&quantity>0?{price,quantity}:null;
+  }).filter(Boolean);
+});
 Object.keys(DEFAULTS.providers).forEach(p => {
   state.providers[p] = { ...DEFAULTS.providers[p], ...(state.providers[p] || {}) };
 });
@@ -89,34 +104,6 @@ if (!localStorage.getItem("swingAmdMigrationV2")) {
 }
 
 const $ = id => document.getElementById(id);
-$("targetPct").value = DEFAULTS.target;
-$("levels").value = DEFAULTS.levels.join(",");
-if ($("sortOrder")) $("sortOrder").value = state.sortOrder;
-if ($("viewMode")) $("viewMode").value = state.viewMode;
-if ($("selectAllUpdates")) $("selectAllUpdates").onchange = e => {
-  const visible = state.symbols.filter(s => !state.hiddenSymbols.includes(s));
-  if (e.target.checked) {
-    state.selectedSymbols = [...new Set([...state.selectedSymbols, ...visible])];
-  } else {
-    state.selectedSymbols = state.selectedSymbols.filter(s => !visible.includes(s));
-  }
-  save();
-  logActivity("settings", e.target.checked ? "All visible stocks selected for Update" : "All visible stocks deselected for Update", {count:visible.length});
-  renderCards();
-};
-if ($("sortOrder")) $("sortOrder").onchange = e => {
-  state.sortOrder = e.target.value;
-  save();
-  logActivity("settings", "Watchlist sort changed", {sortOrder:state.sortOrder});
-  renderCards();
-};
-if ($("viewMode")) $("viewMode").onchange = e => {
-  state.viewMode = e.target.value === "table" ? "table" : "cards";
-  save();
-  logActivity("settings", "Watchlist view changed", {viewMode:state.viewMode});
-  renderCards();
-};
-
 function parseCsv(text){
   const rows=[];
   let row=[], field="", quoted=false;
@@ -244,12 +231,6 @@ $("openFinvizPresetBtn").onclick=()=>{
 renderProviderSettings();
 renderActivityLog();
 scheduleUsageReset();
-$("saveSettings").onclick = () => {
-  logActivity("settings", "Strategy settings saved", {targetPct:$("targetPct").value, levels:$("levels").value});
-  renderCards();
-  renderActivityLog();
-};
-
 $("updateBtn").onclick = updateSelected;
 $("healthBtn").onclick = checkHealth;
 $("hiddenToggleBtn").onclick = () => {
@@ -282,10 +263,15 @@ $("addBtn").onclick = () => {
   $("symbol").value = visible[0];
   $("holding").checked = false;
   $("entryPrice").value = "";
+  $("entryQuantity").value = "1";
   $("entryPrice").disabled = true;
+  $("entryQuantity").disabled = true;
   $("stockDialog").showModal();
 };
-$("holding").onchange = e => $("entryPrice").disabled = !e.target.checked;
+$("holding").onchange = e => {
+  $("entryPrice").disabled = !e.target.checked;
+  $("entryQuantity").disabled = !e.target.checked;
+};
 $("cancelStock").onclick = () => $("stockDialog").close();
 
 $("stockForm").onsubmit = e => {
@@ -293,10 +279,14 @@ $("stockForm").onsubmit = e => {
   const s = $("symbol").value.trim().toUpperCase();
   const visibleSymbols = state.symbols.filter(x => !state.hiddenSymbols.includes(x));
   if (!visibleSymbols.includes(s)) return alert("Избери акция от видимия списък.");
-  if ($("holding").checked && Number($("entryPrice").value) > 0) {
-    const entries = Array.isArray(state.positions[s]) ? state.positions[s] : [];
-    entries.push(Number($("entryPrice").value));
+  const price=Number($("entryPrice").value);
+  const quantity=Number($("entryQuantity").value);
+  if ($("holding").checked && price > 0 && quantity > 0) {
+    const entries = positionEntries(s);
+    entries.push({price,quantity});
     state.positions[s] = entries;
+  } else if ($("holding").checked) {
+    return alert("Въведи валидни цена и количество.");
   } else {
     delete state.positions[s];
   }
@@ -514,11 +504,11 @@ $("clearLog").onclick = () => {
 async function exportLocalData(){
   const payload={
     format:"Swing Signal Monitor local backup",
-    version:"1.18.0",
+    version:"1.19.0",
     exportedAt:new Date().toISOString(),
     state:JSON.parse(JSON.stringify(state)),
-    targetPct:$("targetPct")?.value || String(DEFAULTS.target),
-    levels:$("levels")?.value || DEFAULTS.levels.join(",")
+    targetPct:String(state.target),
+    levels:state.levels.join(",")
   };
   const json=JSON.stringify(payload,null,2);
   const fileName="swing-signal-monitor-backup-" + localUsageDate() + ".json";
@@ -562,6 +552,9 @@ function normalizeLoadedState(raw){
     hiddenSymbols:Array.isArray(raw.hiddenSymbols) ? raw.hiddenSymbols.filter(s=>typeof s==="string") : [],
     sortOrder:["alpha","signal","priceDesc","priceAsc"].includes(raw.sortOrder) ? raw.sortOrder : "alpha",
     viewMode:raw.viewMode==="table" ? "table" : "cards",
+    groupSettings:raw.groupSettings && typeof raw.groupSettings==="object" ? raw.groupSettings : {},
+    target:Number.isFinite(Number(raw.target)) ? Number(raw.target) : DEFAULTS.target,
+    levels:Array.isArray(raw.levels) ? raw.levels.map(Number).filter(x=>Number.isFinite(x)&&x>0) : DEFAULTS.levels.slice(),
     providers:raw.providers && typeof raw.providers==="object" ? raw.providers : {}
   };
   if(!next.symbols.length) next.symbols=DEFAULTS.symbols.slice();
@@ -571,10 +564,19 @@ function normalizeLoadedState(raw){
   if(!next.selectedSymbols.length) next.selectedSymbols=next.symbols.slice();
   Object.keys(next.positions).forEach(s=>{
     const v=next.positions[s];
-    if(typeof v==="number" && Number.isFinite(v) && v>0) next.positions[s]=[v];
-    else if(Array.isArray(v)) next.positions[s]=v.map(Number).filter(n=>Number.isFinite(n)&&n>0);
+    if(typeof v==="number"&&Number.isFinite(v)&&v>0)next.positions[s]=[{price:v,quantity:1}];
+    else if(Array.isArray(v))next.positions[s]=v.map(item=>{
+      if(typeof item==="number"&&Number.isFinite(item)&&item>0)return {price:item,quantity:1};
+      const price=Number(item?.price),quantity=Number(item?.quantity);
+      return Number.isFinite(price)&&price>0&&Number.isFinite(quantity)&&quantity>0?{price,quantity}:null;
+    }).filter(Boolean);
     else delete next.positions[s];
   });
+  const legacySort=["alpha","signal","priceDesc","priceAsc"].includes(next.sortOrder)?next.sortOrder:"alpha";
+  const legacyView=next.viewMode==="table"?"table":"cards";
+  next.groupSettings.owned={sortOrder:["alpha","signal","priceDesc","priceAsc"].includes(next.groupSettings?.owned?.sortOrder)?next.groupSettings.owned.sortOrder:legacySort,viewMode:next.groupSettings?.owned?.viewMode==="table"?"table":legacyView};
+  next.groupSettings.other={sortOrder:["alpha","signal","priceDesc","priceAsc"].includes(next.groupSettings?.other?.sortOrder)?next.groupSettings.other.sortOrder:legacySort,viewMode:next.groupSettings?.other?.viewMode==="table"?"table":legacyView};
+  if(!next.levels.length)next.levels=DEFAULTS.levels.slice();
   Object.keys(DEFAULTS.providers).forEach(p=>{
     next.providers[p]={...DEFAULTS.providers[p],...(next.providers[p]||{})};
   });
@@ -592,9 +594,9 @@ async function importLocalData(file){
   state=loadedState;
   // Backend URL is intentionally NOT imported: every user must configure their own backend.
   const backend=localStorage.getItem("swingBackend") || "";
-  $("backendUrl").value=backend;
-  $("targetPct").value=String(payload.targetPct ?? DEFAULTS.target);
-  $("levels").value=String(payload.levels ?? DEFAULTS.levels.join(","));
+  state.target=Number.isFinite(Number(payload.targetPct)) ? Number(payload.targetPct) : state.target;
+  state.levels=String(payload.levels ?? state.levels.join(",")).split(",").map(Number).filter(x=>Number.isFinite(x)&&x>0);
+  if(!state.levels.length)state.levels=DEFAULTS.levels.slice();
   save();
   renderProviderSettings();
   renderCards();
@@ -660,7 +662,7 @@ function signalRank(x,target,levels){
   if(buy.kind==="entry") return 0;
   const entries=positionEntries(x.symbol);
   if(entries.length){
-    const avgEntry=entries.reduce((sum,v)=>sum+v,0)/entries.length;
+    const avgEntry=weightedAverageEntry(entries);
     const pnl=(x.price/avgEntry-1)*100;
     return pnl >= target ? 2 : 1;
   }
@@ -714,150 +716,118 @@ function renderWatchlistControls(){
   updateSelectAllControl();
 }
 
+function groupSortSettings(key){
+  return state.groupSettings[key] || {sortOrder:"alpha",viewMode:"cards"};
+}
+function groupSymbolsFor(key,symbols,results,target,levels){
+  const cfg=groupSortSettings(key);
+  const compare=(a,b)=>{
+    if(cfg.sortOrder==="signal"){
+      const sa=signalRank(results.get(a),target,levels),sb=signalRank(results.get(b),target,levels);
+      if(sa!==sb)return sa-sb;
+      const pa=Number(results.get(a)?.price),pb=Number(results.get(b)?.price);
+      if(Number.isFinite(pa)&&Number.isFinite(pb)&&pa!==pb)return pa-pb;
+    }
+    if(cfg.sortOrder==="priceAsc"||cfg.sortOrder==="priceDesc"){
+      const pa=Number(results.get(a)?.price),pb=Number(results.get(b)?.price);
+      const av=Number.isFinite(pa),bv=Number.isFinite(pb);
+      if(!av&&!bv)return a.localeCompare(b,"en");
+      if(!av)return 1;if(!bv)return -1;
+      if(pa!==pb)return cfg.sortOrder==="priceAsc"?pa-pb:pb-pa;
+    }
+    return a.localeCompare(b,"en");
+  };
+  return symbols.slice().sort(compare);
+}
+function groupControlsHtml(key,symbols){
+  const cfg=groupSortSettings(key),selected=symbols.filter(s=>state.selectedSymbols.includes(s)).length;
+  const allChecked=symbols.length>0&&selected===symbols.length,indeterminate=selected>0&&selected<symbols.length;
+  return '<div class="group-controls" data-group-controls="'+key+'">'+
+    '<label class="master-select"><input type="checkbox" data-group-select="'+key+'"'+(allChecked?" checked":"")+(indeterminate?' data-indeterminate="true"':"")+'> Всички за Update</label>'+
+    '<label>Подреди: <select data-group-sort="'+key+'">'+
+      '<option value="alpha"'+(cfg.sortOrder==="alpha"?" selected":"")+'>Азбучен ред (A → Z)</option>'+
+      '<option value="signal"'+(cfg.sortOrder==="signal"?" selected":"")+'>Сигнал (ENTRY най-отгоре)</option>'+
+      '<option value="priceDesc"'+(cfg.sortOrder==="priceDesc"?" selected":"")+'>Price (висока → ниска)</option>'+
+      '<option value="priceAsc"'+(cfg.sortOrder==="priceAsc"?" selected":"")+'>Price (ниска → висока)</option>'+
+    '</select></label>'+
+    '<label>Изглед: <select data-group-view="'+key+'">'+
+      '<option value="cards"'+(cfg.viewMode==="cards"?" selected":"")+'>Карти</option>'+
+      '<option value="table"'+(cfg.viewMode==="table"?" selected":"")+'>Таблица</option>'+
+    '</select></label></div>';
+}
+function bindGroupControls(section,key,symbols){
+  const master=section.querySelector('[data-group-select="'+key+'"]');
+  if(master){
+    master.indeterminate=master.dataset.indeterminate==="true";
+    master.onchange=()=>{
+      if(master.checked)state.selectedSymbols=[...new Set([...state.selectedSymbols,...symbols])];
+      else state.selectedSymbols=state.selectedSymbols.filter(s=>!symbols.includes(s));
+      save();renderCards();
+    };
+  }
+  const sort=section.querySelector('[data-group-sort="'+key+'"]');
+  if(sort)sort.onchange=e=>{state.groupSettings[key].sortOrder=e.target.value;save();renderCards();};
+  const view=section.querySelector('[data-group-view="'+key+'"]');
+  if(view)view.onchange=e=>{state.groupSettings[key].viewMode=e.target.value==="table"?"table":"cards";save();renderCards();};
+}
+function tickerLink(symbol){
+  const safe=escapeHtml(symbol);
+  return '<a class="ticker-link" href="https://finviz.com/stock?t='+encodeURIComponent(symbol)+'&ty=c&p=d&b=1" target="_blank" rel="noopener" title="Отвори графиката във Finviz">'+safe+'</a>';
+}
 function renderCards(){
-  const cards = $("cards");
-  const target = Number($("targetPct").value) || 10;
-  const levels = $("levels").value.split(",").map(Number).filter(x=>x>0);
-  const results = new Map(state.lastResults.map(x=>[x.symbol,x]));
-  cards.innerHTML = "";
-
-  if (!state.symbols.length) {
-    cards.innerHTML = '<div class="card"><b>Watchlist е празен.</b><p>Добави акция, за да започнеш.</p></div>';
-    renderWatchlistControls();
-    renderHiddenList();
-    updateHiddenToggle();
-    return;
-  }
-
-  const visibleSymbols=getVisibleSymbols(results,target,levels);
-  const owned=visibleSymbols.filter(hasPosition);
-  const others=visibleSymbols.filter(symbol=>!hasPosition(symbol));
-
-  const renderGroup=(title,symbols,ownedGroup)=>{
-    if(!symbols.length) return;
-    const group=document.createElement("section");
-    group.className="watchlist-group " + (ownedGroup ? "owned-group" : "other-group");
-    group.innerHTML='<div class="watchlist-group-title"><span>' + escapeHtml(title) + '</span><span class="watchlist-count">' + symbols.length + '</span></div>';
-    const grid=document.createElement("div");
-    grid.className="watchlist-group-grid";
-    symbols.forEach(symbol=>{
-      const result=results.get(symbol);
-      grid.appendChild(result ? card(result,target,levels) : placeholderCard(symbol));
-    });
-    group.appendChild(grid);
-    cards.appendChild(group);
-  };
-
-  if(state.viewMode === "table") {
-    renderTableView(cards, visibleSymbols, results, target, levels);
-  } else {
-    renderGroup("Мои позиции",owned,true);
-    renderGroup("Други наблюдавани",others,false);
-  }
-
-  renderWatchlistControls();
-  renderHiddenList();
-  updateHiddenToggle();
+  const cards=$("cards"),target=state.target,levels=state.levels.slice(),results=new Map(state.lastResults.map(x=>[x.symbol,x]));
+  cards.innerHTML="";
+  if(!state.symbols.length){cards.innerHTML='<div class="card"><b>Watchlist е празен.</b><p>Добави акция, за да започнеш.</p></div>';renderHiddenList();updateHiddenToggle();return;}
+  const visible=state.symbols.filter(s=>!state.hiddenSymbols.includes(s));
+  const owned=groupSymbolsFor("owned",visible.filter(hasPosition),results,target,levels);
+  const others=groupSymbolsFor("other",visible.filter(s=>!hasPosition(s)),results,target,levels);
+  renderGroup("Мои позиции",owned,"owned");
+  renderGroup("Други наблюдавани",others,"other");
+  renderHiddenList();updateHiddenToggle();
 }
-
-
-function renderTableView(container,symbols,results,target,levels){
-  const owned=symbols.filter(hasPosition);
-  const others=symbols.filter(symbol=>!hasPosition(symbol));
-
-  const renderGroupTable=(title,groupSymbols)=>{
-    if(!groupSymbols.length) return;
-    const section=document.createElement("section");
-    section.className="watchlist-table-group " + (title==="Мои позиции" ? "owned-group" : "other-group");
-    const titleEl=document.createElement("div");
-    titleEl.className="watchlist-group-title";
-    titleEl.innerHTML='<span>' + escapeHtml(title) + '</span><span class="watchlist-count">' + groupSymbols.length + '</span>';
-    section.appendChild(titleEl);
-
-    const wrap=document.createElement("div");
-    wrap.className="table-wrap";
-    const table=document.createElement("table");
-    table.className="watchlist-table";
-    table.innerHTML=
-      '<thead><tr>' +
-        '<th>Update</th><th>Акция</th><th>Price</th><th>Позиция</th><th>Допокупка</th><th>60d high</th>' +
-        '<th>От връха</th><th>Ден</th><th>Обновено</th><th>Finviz</th><th>Data</th><th></th>' +
-      '</tr></thead>';
-    const tbody=document.createElement("tbody");
-
-    groupSymbols.forEach(symbol=>{
-      const x=results.get(symbol);
-      const ownedNow=hasPosition(symbol);
-      if(x && x.status && x.status!=="ok"){
-        const row=document.createElement("tr");
-        row.className="table-row error";
-        row.innerHTML=
-          '<td>' + checkboxHtml(symbol) + '</td>' +
-          '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
-          '<td>—</td><td colspan="7"><b>' + escapeHtml(statusLabel(x.status)) + '</b> ' + escapeHtml(x.error || "Няма данни.") + '</td>' +
-          '<td>' + escapeHtml(providerName(x.source)) + '</td>' +
-          '<td>' + (ownedNow ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(symbol) + '">Продай</button>' : '<button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button>') + '</td>';
-        bindTableRow(row,symbol);
-        tbody.appendChild(row);
-        return;
-      }
-
-      if(!x){
-        const row=document.createElement("tr");
-        row.className="table-row";
-        row.innerHTML=
-          '<td>' + checkboxHtml(symbol) + '</td>' +
-          '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
-          '<td colspan="8">Няма заредени данни</td>' +
-          '<td>—</td>' +
-          '<td>' + (ownedNow ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(symbol) + '">Продай</button>' : '<button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button>') + '</td>';
-        bindTableRow(row,symbol);
-        tbody.appendChild(row);
-        return;
-      }
-
-      const buy=additionalBuyState(x,levels);
-      const entries=positionEntries(x.symbol);
-      const avg=entries.length ? entries.reduce((sum,v)=>sum+v,0)/entries.length : null;
-      const pnl=avg!==null ? (x.price/avg-1)*100 : null;
-      const posText=entries.length
-        ? ((pnl>=target ? "🔵 EXIT ZONE" : "🟡 HOLD / WATCH") + " · P/L " + pnl.toFixed(2) + "%")
-        : "—";
-      const buyText=buy.kind==="entry"
-        ? "🟢 ENTRY ZONE · -" + buy.level + "%"
-        : "⚪ WAIT" + (buy.level!==null ? " · следващо -" + buy.level + "%" : "");
-      const row=document.createElement("tr");
-      row.className="table-row " + (buy.kind==="entry" ? "entry" : "wait") + (ownedNow ? " owned-row" : "");
-      row.innerHTML=
-        '<td>' + checkboxHtml(symbol) + '</td>' +
-        '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span>' + (ownedNow ? '<span class="owned-badge">МОЯ ПОЗИЦИЯ</span>' : '') + '</td>' +
-        '<td><b>$' + num(x.price) + '</b></td>' +
-        '<td>' + escapeHtml(posText) + '</td>' +
-        '<td>' + escapeHtml(buyText) + '</td>' +
-        '<td>$' + num(x.high60) + '</td>' +
-        '<td>' + Number(x.drawdownPct).toFixed(2) + '%</td>' +
-        '<td>' + (x.changePct>=0?"+":"") + Number(x.changePct).toFixed(2) + '%</td>' +
-        '<td>' + escapeHtml(x.date || "—") + '</td>' +
-        '<td>' + escapeHtml(finvizSummary(symbol)) + '</td>' +
-        '<td>' + escapeHtml(providerName(x.source)) + '</td>' +
-        '<td>' + (ownedNow ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(symbol) + '">Продай</button>' : '<button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button>') + '</td>';
-      bindTableRow(row,symbol);
-      tbody.appendChild(row);
-    });
-
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-    section.appendChild(wrap);
-    container.appendChild(section);
-    section.querySelectorAll("[data-sell]").forEach(btn=>btn.onclick=()=>sellPosition(btn.dataset.sell));
-  };
-
-  renderGroupTable("Мои позиции",owned);
-  renderGroupTable("Други наблюдавани",others);
+function renderGroup(title,symbols,key){
+  if(!symbols.length)return;
+  const section=document.createElement("section");
+  section.className="watchlist-group "+(key==="owned"?"owned-group":"other-group");
+  section.innerHTML='<div class="watchlist-group-title"><div class="group-title-main"><span>'+escapeHtml(title)+'</span><span class="watchlist-count">'+symbols.length+'</span></div>'+groupControlsHtml(key,symbols)+'</div>';
+  const cfg=groupSortSettings(key);
+  if(cfg.viewMode==="table")renderTableGroup(section,symbols,key);
+  else{
+    const grid=document.createElement("div");grid.className="watchlist-group-grid";
+    const results=new Map(state.lastResults.map(x=>[x.symbol,x]));
+    symbols.forEach(symbol=>grid.appendChild(results.get(symbol)?card(results.get(symbol),state.target,state.levels):placeholderCard(symbol)));
+    section.appendChild(grid);
+  }
+  bindGroupControls(section,key,symbols);cards.appendChild(section);
 }
-
-
-
+function renderTableGroup(section,groupSymbols,key){
+  const results=new Map(state.lastResults.map(x=>[x.symbol,x])),target=state.target,levels=state.levels;
+  const wrap=document.createElement("div");wrap.className="table-wrap";
+  const table=document.createElement("table");table.className="watchlist-table";
+  table.innerHTML='<thead><tr><th>Update</th><th>Акция</th><th>Price</th><th>Позиция</th><th>Допокупка</th><th>60d high</th><th>От връха</th><th>Ден</th><th>Обновено</th><th>Finviz</th><th>Data</th><th></th></tr></thead>';
+  const tbody=document.createElement("tbody");
+  groupSymbols.forEach(symbol=>{
+    const x=results.get(symbol),ownedNow=hasPosition(symbol);
+    if(x&&x.status&&x.status!=="ok"){
+      const row=document.createElement("tr");row.className="table-row error";
+      row.innerHTML='<td>'+checkboxHtml(symbol)+'</td><td>'+tickerLink(symbol)+'<span class="table-company">'+escapeHtml(companyName(symbol))+'</span></td><td>—</td><td colspan="7"><b>'+escapeHtml(statusLabel(x.status))+'</b> '+escapeHtml(x.error||"Няма данни.")+'</td><td>'+escapeHtml(providerName(x.source))+'</td><td>'+(ownedNow?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(symbol)+'">Продай</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(symbol)+'">Скрий</button>')+'</td>';
+      bindTableRow(row,symbol);tbody.appendChild(row);return;
+    }
+    if(!x){
+      const row=document.createElement("tr");row.className="table-row";
+      row.innerHTML='<td>'+checkboxHtml(symbol)+'</td><td>'+tickerLink(symbol)+'<span class="table-company">'+escapeHtml(companyName(symbol))+'</span></td><td colspan="8">Няма заредени данни</td><td>—</td><td>'+(ownedNow?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(symbol)+'">Продай</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(symbol)+'">Скрий</button>')+'</td>';
+      bindTableRow(row,symbol);tbody.appendChild(row);return;
+    }
+    const buy=additionalBuyState(x,levels),entries=positionEntries(symbol),avg=weightedAverageEntry(entries),pnl=avg!==null?(x.price/avg-1)*100:null;
+    const posText=entries.length?((pnl>=target?"🔵 EXIT ZONE":"🟡 HOLD / WATCH")+" · P/L "+pnl.toFixed(2)+"%"):"—";
+    const buyText=buy.kind==="entry"?"🟢 ENTRY ZONE · -"+buy.level+"%":"⚪ WAIT"+(buy.level!==null?" · следващо -"+buy.level+"%":"");
+    const row=document.createElement("tr");row.className="table-row "+(buy.kind==="entry"?"entry":"wait")+(ownedNow?" owned-row":"");
+    row.innerHTML='<td>'+checkboxHtml(symbol)+'</td><td>'+tickerLink(symbol)+'<span class="table-company">'+escapeHtml(companyName(symbol))+'</span>'+(ownedNow?'<span class="owned-badge">МОЯ ПОЗИЦИЯ</span>':"")+'</td><td><b>$'+num(x.price)+'</b></td><td>'+escapeHtml(posText)+'</td><td>'+escapeHtml(buyText)+'</td><td>$'+num(x.high60)+'</td><td>'+Number(x.drawdownPct).toFixed(2)+'%</td><td>'+(x.changePct>=0?"+":"")+Number(x.changePct).toFixed(2)+'%</td><td>'+escapeHtml(x.date||"—")+'</td><td>'+escapeHtml(finvizSummary(symbol))+'</td><td>'+escapeHtml(providerName(x.source))+'</td><td>'+(ownedNow?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(symbol)+'">Продай</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(symbol)+'">Скрий</button>')+'</td>';
+    bindTableRow(row,symbol);tbody.appendChild(row);
+  });
+  table.appendChild(tbody);wrap.appendChild(table);section.appendChild(wrap);
+  section.querySelectorAll("[data-sell]").forEach(btn=>btn.onclick=()=>sellPosition(btn.dataset.sell));
+}
 function checkboxHtml(symbol){
   const selected=state.selectedSymbols.includes(symbol);
   return '<label class="table-selection"><input type="checkbox" data-select="' + escapeHtml(symbol) + '"' + (selected ? " checked" : "") + '></label>';
@@ -935,7 +905,7 @@ async function testProvider(provider){
 
 async function updateSelected(){
   const cards = $("cards");
-  const backend = $("backendUrl").value.trim().replace(/\/$/,"");
+  const backend = (localStorage.getItem("swingBackend") || "").trim().replace(/\/$/,"");
   const selected = state.selectedSymbols.filter(s => state.symbols.includes(s));
 
   if (!backend) {
@@ -950,8 +920,8 @@ async function updateSelected(){
   save();
   cards.innerHTML = '<div class="card loading">Изпращам заявка само за избраните акции: ' + escapeHtml(selected.join(", ")) + '…</div>';
 
-  const target = Number($("targetPct").value) || 10;
-  const levels = $("levels").value.split(",").map(Number).filter(x=>x>0);
+  const target = state.target;
+  const levels = state.levels.slice();
 
   try{
     const providers = enabledProviders();
@@ -1004,7 +974,7 @@ function mergeResults(oldResults,newResults){
 
 async function checkHealth(){
   const result = $("healthResult");
-  const backend = $("backendUrl").value.trim().replace(/\/$/,"");
+  const backend = (localStorage.getItem("swingBackend") || "").trim().replace(/\/$/,"");
 
   if(!backend){
     result.hidden = false;
@@ -1134,9 +1104,18 @@ function card(x,target,levels){
 
 function positionEntries(symbol){
   const raw=state.positions[symbol];
-  if(Array.isArray(raw)) return raw.map(Number).filter(v=>Number.isFinite(v) && v>0);
-  if(typeof raw==="number" && Number.isFinite(raw) && raw>0) return [raw];
-  return [];
+  if(!Array.isArray(raw)) return [];
+  return raw.map(v=>{
+    if(typeof v==="number"&&Number.isFinite(v)&&v>0)return {price:v,quantity:1};
+    const price=Number(v?.price),quantity=Number(v?.quantity);
+    return Number.isFinite(price)&&price>0&&Number.isFinite(quantity)&&quantity>0?{price,quantity}:null;
+  }).filter(Boolean);
+}
+function weightedAverageEntry(entries){
+  if(!entries?.length)return null;
+  const totalQty=entries.reduce((sum,e)=>sum+Number(e.quantity||0),0);
+  if(!totalQty)return null;
+  return entries.reduce((sum,e)=>sum+Number(e.price)*Number(e.quantity),0)/totalQty;
 }
 function statusCard(x){
   const selected = state.selectedSymbols.includes(x.symbol);
