@@ -2,5 +2,10 @@ name = "swing-signal-backend"
 main = "worker.js"
 compatibility_date = "2026-09-01"
 
+[vars]
+ALPHA_VANTAGE_SECRET_NAME = "ALPHA_VANTAGE_KEY"
+TWELVE_DATA_SECRET_NAME = "TWELVE_DATA_API_KEY"
+FINNHUB_SECRET_NAME = "FINNHUB_API_KEY"
+
 [observability]
 enabled = true
