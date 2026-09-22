@@ -19,7 +19,7 @@ export default {
         ok: true,
         service: "swing-signal-backend",
         version: "1.20.0",
-        providers: await providerHealth(url, env)
+        providers: await providerHealth(env)
       });
     }
 
@@ -40,16 +40,15 @@ export default {
       ? configured.split(",").map(x => x.trim().toLowerCase()).filter(x => PROVIDERS.includes(x))
       : PROVIDERS
     ).filter((p, i, a) => a.indexOf(p) === i);
-    const secretNames = parseSecretNames(url);
-
+    
     if (!symbols.length) return json({ error: "No symbols" }, 400);
     if (!providers.length) return json({ error: "No enabled providers" }, 400);
 
     const results = [];
     const usage = {
-      alphavantage: { configured: !!getSecret(env, "alphavantage", secretNames), apiCalls: 0, remaining: null },
-      twelvedata: { configured: !!getSecret(env, "twelvedata", secretNames), apiCalls: 0, minuteCreditsLeft: null, dailyLimit: 800 },
-      finnhub: { configured: !!getSecret(env, "finnhub", secretNames), apiCalls: 0, remaining: null }
+      alphavantage: { configured: !!getSecret(env, "alphavantage"), apiCalls: 0, remaining: null },
+      twelvedata: { configured: !!getSecret(env, "twelvedata"), apiCalls: 0, minuteCreditsLeft: null, dailyLimit: 800 },
+      finnhub: { configured: !!getSecret(env, "finnhub"), apiCalls: 0, remaining: null }
     };
 
     for (const symbol of symbols) {
@@ -62,12 +61,12 @@ export default {
       let resolved = null;
       const attempts = [];
       for (const provider of providers) {
-        if (!isConfigured(provider, env, secretNames)) {
+        if (!isConfigured(provider, env)) {
           attempts.push({ provider, status: "not_configured" });
           continue;
         }
         try {
-          const data = await fetchProvider(provider, symbol, env, usage, secretNames);
+          const data = await fetchProvider(provider, symbol, env, usage);
           attempts.push({ provider, status: data.result ? "ok" : (data.rateLimited ? "rate_limited" : (data.permanentError ? "error" : "no_valid_data")), message: data.message || null });
           if (data.rateLimited) continue;
           if (data.result) {
@@ -116,8 +115,7 @@ async function checkProviderNetwork(url) {
 
 async function testProviderRequest(url, env) {
   const provider = (url.searchParams.get("provider") || "").toLowerCase();
-  const secretNames = parseSecretNames(url);
-  const symbol = (url.searchParams.get("symbol") || "NVDA").trim().toUpperCase();
+    const symbol = (url.searchParams.get("symbol") || "NVDA").trim().toUpperCase();
   if (!PROVIDERS.includes(provider)) return json({ ok: false, error: "Unknown provider" }, 400);
   if (!isConfigured(provider, env, secretNames)) return json({ ok: false, provider, symbol, status: "not_configured", error: "Provider API key is not configured." }, 200);
 
@@ -142,9 +140,8 @@ async function testProviderRequest(url, env) {
   }
 }
 
-async function providerHealth(url, env) {
-  const secretNames = parseSecretNames(url);
-  const checks = await Promise.all([
+async function providerHealth(env) {
+    const checks = await Promise.all([
     checkProviderNetwork("https://www.alphavantage.co/"),
     checkProviderNetwork("https://api.twelvedata.com/"),
     checkProviderNetwork("https://finnhub.io/")
@@ -157,31 +154,25 @@ async function providerHealth(url, env) {
 }
 
 
-function parseSecretNames(url) {
-  const names = { ...DEFAULT_SECRET_NAMES };
-  try {
-    const raw = url.searchParams.get("secretNames");
-    if (!raw) return names;
-    const parsed = JSON.parse(raw);
-    for (const provider of PROVIDERS) {
-      const candidate = String(parsed?.[provider] || "").trim().toUpperCase();
-      if (/^[A-Z][A-Z0-9_]{0,62}$/.test(candidate)) names[provider] = candidate;
-    }
-  } catch {}
-  return names;
+function configuredSecretName(env, provider) {
+  const configBinding = provider === "alphavantage" ? "ALPHA_VANTAGE_SECRET_NAME"
+    : provider === "twelvedata" ? "TWELVE_DATA_SECRET_NAME"
+    : "FINNHUB_SECRET_NAME";
+  const candidate = String(env[configBinding] || "").trim().toUpperCase();
+  return /^[A-Z][A-Z0-9_]{0,62}$/.test(candidate) ? candidate : DEFAULT_SECRET_NAMES[provider];
 }
 
-function getSecret(env, provider, secretNames) {
-  const preferred = secretNames?.[provider] || DEFAULT_SECRET_NAMES[provider];
+function getSecret(env, provider) {
+  const preferred = configuredSecretName(env, provider);
   return env[preferred] || env[DEFAULT_SECRET_NAMES[provider]] || "";
 }
 
-function isConfigured(provider, env, secretNames) {
-  return !!getSecret(env, provider, secretNames);
+function isConfigured(provider, env) {
+  return !!getSecret(env, provider);
 }
 
-async function fetchProvider(provider, symbol, env, usage, secretNames) {
-  const key = getSecret(env, provider, secretNames);
+async function fetchProvider(provider, symbol, env, usage) {
+  const key = getSecret(env, provider);
   if (provider === "alphavantage") return fetchAlphaVantage(symbol, key, usage);
   if (provider === "twelvedata") return fetchTwelveData(symbol, key, usage);
   return fetchFinnhub(symbol, key, usage);
