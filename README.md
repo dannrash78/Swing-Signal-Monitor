@@ -14,7 +14,7 @@ GitHub Pages frontend + Cloudflare Worker backend for informational swing monito
 - No automatic market-data scan on page load.
 - Manual Update only requests selected stocks.
 - Check Health uses /api/health, checks backend connectivity to all three provider hosts, and does not call market-data endpoints or consume provider data quota.
-- Data-source enablement and priority are controlled from the sticky header. Check Health exposes a Test NVDA action for each provider.
+- Data-source enablement and priority are controlled from **Settings**. Check Health remains available from the main page.
 - Failed scans show the provider-by-provider attempts and their actual status/reason when no provider returns valid data.
 - Last successful results are kept locally.
 - Signals use the 60-trading-day high, configurable drawdown levels and optional position target.
@@ -22,8 +22,7 @@ GitHub Pages frontend + Cloudflare Worker backend for informational swing monito
 - Without a holding, the card also shows the model's next/active entry level based on the configured drawdown thresholds.
 - Position entry uses a dropdown containing only currently visible watchlist stocks.
 - Clearing the holding checkbox for an existing stock clears its open entries without removing the stock from the watchlist.
-- Watchlist can be sorted alphabetically or by unit price (high-to-low / low-to-high), with the choice persisted locally.
-- Watchlist can switch between card and table views, with the choice persisted locally.
+- Each watchlist group has its own persistent sorting and view choice: alphabetical, signal, price ascending/descending, Cards or Table.
 - ENTRY ZONE tiles/rows are highlighted green; HOLD/WATCH tiles/rows are highlighted yellow.
 
 ## Data providers
