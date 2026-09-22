@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.19.4
+Version 1.21.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -83,3 +83,13 @@ API keys remain server-side in Cloudflare Worker. The frontend sends only provid
 - The public frontend does not send arbitrary secret names to the Worker; this keeps the public endpoint from being able to select unrelated Worker secrets.
 - Local backup now includes the Backend URL, provider secret-name mappings, provider settings, strategy, watchlist, positions, group view/sort settings, hidden stocks, results and Finviz data.
 - Owned-position cards show current cash profit/loss next to **МОЯ ПОЗИЦИЯ**, with an up arrow for profit and a down arrow for loss.
+
+
+## v1.21.0
+
+- Added a separate **Market Regime** layer using SPY and QQQ.
+- Market Regime v1 uses price vs SMA50 and 60-day return as the core context; SMA200 is additional confirmation when enough history is available.
+- Market Regime states are **RISK-ON**, **NEUTRAL / TRANSITION**, or **RISK-OFF** and are informational only.
+- Added **Update Market** so market context can be refreshed separately from the selected watchlist Update workflow.
+- Added a dedicated **Help** page explaining the tool purpose, configuration, existing signal logic, Market Regime and how to read the results.
+- Added /api/market to the Cloudflare Worker with provider fallback and 6-hour cache behavior.
