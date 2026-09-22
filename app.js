@@ -614,7 +614,7 @@ async function importLocalData(file){
   if(!confirm("Зареди записаните Watchlist, позиции и настройки? Текущите локални данни ще бъдат заменени.")) return;
 
   state=loadedState;
-  // Backend URL is intentionally NOT imported: every user must configure their own backend.
+  // Backend URL is part of the local backup so the complete configuration can be restored in another browser.
   const backend=String(payload.backendUrl || "").trim().replace(/\/$/,"");
   if(backend) localStorage.setItem("swingBackend",backend); else localStorage.removeItem("swingBackend");
   state.target=Number.isFinite(Number(payload.targetPct)) ? Number(payload.targetPct) : state.target;
