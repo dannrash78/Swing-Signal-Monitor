@@ -34,7 +34,7 @@
         </div>
         <p class="hint">Избери за кои акции да се направи заявка при <b>Update</b>. Изборът се запазва.</p>
       </div>
-      <div class="toolbar-actions"><button id="hiddenToggleBtn" class="secondary">Невидим списък (0)</button><button id="addBtn">+ Въведи позиция</button></div>
+      <div class="toolbar-actions"><button id="hiddenToggleBtn" class="secondary">Невидим списък (0)</button><button id="addStockBtn" class="secondary">+ Добави акция</button><button id="addBtn">+ Въведи позиция</button></div>
     </div>
     <div class="watchlist-tools">
       <input id="finvizFile" type="file" accept=".csv,text/csv" hidden>
@@ -94,6 +94,19 @@
     <menu>
       <button type="button" id="cancelStock">Отказ</button>
       <button id="addStock" type="submit">Запази</button>
+    </menu>
+  </form>
+</dialog>
+<dialog id="addStockDialog">
+  <form method="dialog" id="addStockForm">
+    <h3>Добави акция в Watchlist</h3>
+    <label>Ticker
+      <input id="newStockSymbol" type="text" maxlength="8" placeholder="например ACAD" autocomplete="off" spellcheck="false" required>
+    </label>
+    <p class="dialog-hint">Добавянето създава само Watchlist запис. След това можеш да импортираш Finviz CSV за фундаментален контекст и да натиснеш Update за пазарни данни.</p>
+    <menu>
+      <button type="button" id="cancelAddStock">Отказ</button>
+      <button id="confirmAddStock" type="submit">Добави</button>
     </menu>
   </form>
 </dialog>
