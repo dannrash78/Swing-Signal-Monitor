@@ -1,3 +1,13 @@
+const STRATEGY_PROFILE = {
+  debtToEquityMax: 1.0,
+  roeMin: 10,
+  epsQoqMin: 10,
+  salesQoqMin: 10,
+  epsTtmMin: 10,
+  salesTtmMin: 10,
+  requireAboveSma200: true
+};
+
 const DEFAULTS = {
   symbols: ["NVDA","AMD","MU","AVGO","TSLA","AAPL","AMZN","META","MSFT","GOOGL"],
   companyNames: {
@@ -41,7 +51,8 @@ let state = JSON.parse(localStorage.getItem("swingState") || "null") || {
   lastResults: [],
   hiddenSymbols: [],
   sortOrder: "alpha",
-  viewMode: "cards"
+  viewMode: "cards",
+  fundamentals: {}
 };
 
 state.symbols = Array.isArray(state.symbols) ? state.symbols : DEFAULTS.symbols.slice();
@@ -57,6 +68,7 @@ state.lastResults = Array.isArray(state.lastResults) ? state.lastResults : [];
 state.hiddenSymbols = Array.isArray(state.hiddenSymbols) ? state.hiddenSymbols.filter(s => state.symbols.includes(s)) : [];
 state.sortOrder = ["alpha","signal","priceDesc","priceAsc"].includes(state.sortOrder) ? state.sortOrder : "alpha";
 state.viewMode = state.viewMode === "table" ? "table" : "cards";
+state.fundamentals = state.fundamentals && typeof state.fundamentals === "object" ? state.fundamentals : {};
 state.providers = state.providers || {};
 Object.keys(DEFAULTS.providers).forEach(p => {
   state.providers[p] = { ...DEFAULTS.providers[p], ...(state.providers[p] || {}) };
@@ -104,6 +116,118 @@ if ($("viewMode")) $("viewMode").onchange = e => {
   save();
   logActivity("settings", "Watchlist view changed", {viewMode:state.viewMode});
   renderCards();
+};
+
+function parseCsv(text){
+  const rows=[];
+  let row=[], field="", quoted=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch === '"'){
+      if(quoted && text[i+1] === '"'){ field+='"'; i++; }
+      else quoted=!quoted;
+    }else if(ch === "," && !quoted){
+      row.push(field); field="";
+    }else if((ch === "\n" || ch === "\r") && !quoted){
+      if(ch === "\r" && text[i+1] === "\n") i++;
+      row.push(field); field="";
+      if(row.some(v=>v.trim()!=="")) rows.push(row);
+      row=[];
+    }else{
+      field+=ch;
+    }
+  }
+  if(field!=="" || row.length){
+    row.push(field);
+    if(row.some(v=>v.trim()!=="")) rows.push(row);
+  }
+  return rows;
+}
+function csvKey(value){
+  return String(value||"").trim().toLowerCase().replace(/[^a-z0-9]+/g,"");
+}
+function parsePercent(value){
+  const s=String(value??"").trim().replace("%","");
+  if(!s || s==="-" || s==="—" || s==="N/A") return null;
+  const n=Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+function parseNumber(value){
+  const s=String(value??"").trim().replace(/,/g,"");
+  if(!s || s==="-" || s==="—" || s==="N/A") return null;
+  const n=Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+function normalizeFinvizRow(headers,row){
+  const data={};
+  headers.forEach((h,i)=>data[csvKey(h)] = String(row[i]??"").trim());
+  const ticker=data.ticker || data.symbol;
+  if(!ticker) return null;
+  return {
+    ticker:ticker.toUpperCase(),
+    debtToEquity:parseNumber(data.debteq || data.debttoequity),
+    roe:parsePercent(data.roe),
+    epsQoq:parsePercent(data.epsqoq),
+    salesQoq:parsePercent(data.salesqoq),
+    epsTtm:parsePercent(data.epsyytm || data.epsyyttm || data.epsttm),
+    salesTtm:parsePercent(data.salesyoy || data.salesyy || data.salesyyttm || data.salesttm),
+    price:parseNumber(data.price),
+    sma200:parseNumber(data.sma200)
+  };
+}
+function importFinvizData(text){
+  const rows=parseCsv(text);
+  if(rows.length<2) throw new Error("Finviz CSV няма достатъчно редове.");
+  const headers=rows[0];
+  const imported={};
+  rows.slice(1).forEach(row=>{
+    const item=normalizeFinvizRow(headers,row);
+    if(item) imported[item.ticker]=item;
+  });
+  if(!Object.keys(imported).length) throw new Error("Не открих валидни ticker редове във Finviz CSV.");
+  state.fundamentals={...state.fundamentals,...imported};
+  save();
+  renderCards();
+  logActivity("settings","Finviz CSV imported",{rows:Object.keys(imported).length});
+}
+function finvizAssessment(symbol){
+  const f=state.fundamentals[symbol];
+  if(!f) return {status:"missing",known:0,total:7,passes:0,failures:0};
+  const checks=[
+    ["D/E", f.debtToEquity, v=>v<=STRATEGY_PROFILE.debtToEquityMax],
+    ["ROE", f.roe, v=>v>=STRATEGY_PROFILE.roeMin],
+    ["EPS Q/Q", f.epsQoq, v=>v>=STRATEGY_PROFILE.epsQoqMin],
+    ["Sales Q/Q", f.salesQoq, v=>v>=STRATEGY_PROFILE.salesQoqMin],
+    ["EPS TTM", f.epsTtm, v=>v>=STRATEGY_PROFILE.epsTtmMin],
+    ["Sales TTM", f.salesTtm, v=>v>=STRATEGY_PROFILE.salesTtmMin],
+    ["Price>SMA200", (Number.isFinite(f.price)&&Number.isFinite(f.sma200)) ? f.price-f.sma200 : null, v=>v>0]
+  ];
+  let known=0,passes=0,failures=0;
+  checks.forEach(([,value,test])=>{
+    if(value===null || !Number.isFinite(value)) return;
+    known++;
+    if(test(value)) passes++; else failures++;
+  });
+  return {status:failures ? "fail" : (known===checks.length ? "pass" : "incomplete"),known,total:checks.length,passes,failures};
+}
+function finvizSummary(symbol){
+  const a=finvizAssessment(symbol);
+  if(a.status==="missing") return "Finviz: няма импортирани данни";
+  if(a.status==="pass") return "Finviz профил: PASS 7/7";
+  if(a.status==="fail") return "Finviz профил: REVIEW " + a.passes + "/" + a.total;
+  return "Finviz профил: INCOMPLETE " + a.known + "/" + a.total;
+}
+$("importFinvizBtn").onclick=()=>$("finvizFile").click();
+$("finvizFile").onchange=async e=>{
+  const file=e.target.files?.[0];
+  if(!file) return;
+  try{ importFinvizData(await file.text()); }
+  catch(err){
+    alert(err.message || "Неуспешен Finviz import.");
+    logActivity("error","Finviz CSV import failed",{error:err.message || "Unknown error"},"error");
+  }finally{
+    e.target.value="";
+  }
 };
 renderProviderSettings();
 renderActivityLog();
@@ -375,7 +499,7 @@ $("clearLog").onclick = () => {
 async function exportLocalData(){
   const payload={
     format:"Swing Signal Monitor local backup",
-    version:"1.15.0",
+    version:"1.16.0",
     exportedAt:new Date().toISOString(),
     state:JSON.parse(JSON.stringify(state)),
     targetPct:$("targetPct")?.value || String(DEFAULTS.target),
@@ -505,19 +629,27 @@ $("loadDataFile").onchange=async e=>{
     e.target.value="";
   }
 };
+function additionalBuyState(x,levels){
+  const dd=Number(x?.drawdownPct);
+  const sortedLevels=levels.slice().sort((a,b)=>a-b);
+  if(!Number.isFinite(dd) || !sortedLevels.length) return {kind:"wait",level:null};
+  const reached=sortedLevels.filter(l => dd <= -l).pop();
+  if(reached) return {kind:"entry",level:reached};
+  const next=sortedLevels.find(l => dd > -l);
+  return {kind:"wait",level:next || sortedLevels[sortedLevels.length-1]};
+}
 function signalRank(x,target,levels){
   if (!x) return 99;
   if (x.status && x.status !== "ok") return 90;
+  const buy=additionalBuyState(x,levels);
+  if(buy.kind==="entry") return 0;
   const entries=positionEntries(x.symbol);
   if(entries.length){
     const avgEntry=entries.reduce((sum,v)=>sum+v,0)/entries.length;
     const pnl=(x.price/avgEntry-1)*100;
-    return pnl >= target ? 2 : 1; // HOLD/WATCH before EXIT
+    return pnl >= target ? 2 : 1;
   }
-  const dd=x.drawdownPct;
-  const sortedLevels=levels.slice().sort((a,b)=>a-b);
-  const reached=sortedLevels.filter(l => dd <= -l).pop();
-  return reached ? 0 : 3; // ENTRY first, then WAIT
+  return 3;
 }
 
 function getVisibleSymbols(results,target,levels){
@@ -590,90 +722,80 @@ function renderCards(){
   updateHiddenToggle();
 }
 
-function renderTableView(container, symbols, results, target, levels){
+function renderTableView(container,symbols,results,target,levels){
   const wrap=document.createElement("div");
   wrap.className="table-wrap";
-
   const table=document.createElement("table");
   table.className="watchlist-table";
-  table.innerHTML =
+  table.innerHTML=
     '<thead><tr>' +
-      '<th>Update</th><th>Акция</th><th>Price</th><th>Сигнал</th><th>60d high</th>' +
-      '<th>От връха</th><th>Ден</th><th>Обновено</th><th>Позиция</th><th>Data</th><th></th>' +
+      '<th>Update</th><th>Акция</th><th>Price</th><th>Позиция</th><th>Допокупка</th><th>60d high</th>' +
+      '<th>От връха</th><th>Ден</th><th>Обновено</th><th>Finviz</th><th>Data</th><th></th>' +
     '</tr></thead>';
   const tbody=document.createElement("tbody");
 
-  symbols.forEach(symbol => {
+  symbols.forEach(symbol=>{
     const x=results.get(symbol);
-    if (x && x.status && x.status !== "ok") {
+    if(x && x.status && x.status!=="ok"){
       const row=document.createElement("tr");
       row.className="table-row error";
-      row.innerHTML =
+      row.innerHTML=
         '<td>' + checkboxHtml(symbol) + '</td>' +
         '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
-        '<td>—</td>' +
-        '<td><b>' + escapeHtml(statusLabel(x.status)) + '</b></td>' +
-        '<td colspan="5">' + escapeHtml(x.error || "Няма данни.") + '</td>' +
+        '<td>—</td><td colspan="7"><b>' + escapeHtml(statusLabel(x.status)) + '</b> ' + escapeHtml(x.error || "Няма данни.") + '</td>' +
         '<td>' + escapeHtml(providerName(x.source)) + '</td>' +
         '<td><button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button></td>';
       bindTableRow(row,symbol);
       tbody.appendChild(row);
       return;
     }
-
-    if (!x) {
+    if(!x){
       const row=document.createElement("tr");
       row.className="table-row";
-      row.innerHTML =
+      row.innerHTML=
         '<td>' + checkboxHtml(symbol) + '</td>' +
         '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
         '<td colspan="8">Няма заредени данни</td>' +
+        '<td>—</td>' +
         '<td><button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button></td>';
       bindTableRow(row,symbol);
       tbody.appendChild(row);
       return;
     }
 
-    const rendered = tableSignalState(x,target,levels);
+    const buy=additionalBuyState(x,levels);
     const entries=positionEntries(x.symbol);
-    let positionText="—";
-    if(entries.length){
-      const avg=entries.reduce((sum,v)=>sum+v,0)/entries.length;
-      const pnl=(x.price/avg-1)*100;
-      positionText='Входове: ' + entries.length + ' · avg $' + num(avg) + ' · P/L ' + pnl.toFixed(2) + '%';
-    } else {
-      const sortedLevels=levels.slice().sort((a,b)=>a-b);
-      if(sortedLevels.length){
-        const reached=sortedLevels.filter(l => x.drawdownPct <= -l).pop();
-        const next=sortedLevels.find(l => x.drawdownPct > -l);
-        const planLevel=reached || next || sortedLevels[sortedLevels.length-1];
-        const planPrice=x.high60*(1-planLevel/100);
-        positionText='Предполагаем вход: $' + num(planPrice) + ' · -' + planLevel + '%';
-      }
-    }
-
+    const avg=entries.length ? entries.reduce((sum,v)=>sum+v,0)/entries.length : null;
+    const pnl=avg!==null ? (x.price/avg-1)*100 : null;
+    const posText=entries.length
+      ? ((pnl>=target ? "🔵 EXIT ZONE" : "🟡 HOLD / WATCH") + " · P/L " + pnl.toFixed(2) + "%")
+      : "⚪ Няма позиция";
+    const buyText=buy.kind==="entry"
+      ? "🟢 ENTRY ZONE · -" + buy.level + "%"
+      : "⚪ WAIT" + (buy.level!==null ? " · следващо -" + buy.level + "%" : "");
     const row=document.createElement("tr");
-    row.className="table-row " + rendered.cls;
-    row.innerHTML =
+    row.className="table-row " + (buy.kind==="entry" ? "entry" : "wait");
+    row.innerHTML=
       '<td>' + checkboxHtml(symbol) + '</td>' +
       '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
       '<td><b>$' + num(x.price) + '</b></td>' +
-      '<td><b>' + rendered.signal + '</b></td>' +
+      '<td>' + escapeHtml(posText) + '</td>' +
+      '<td>' + escapeHtml(buyText) + '</td>' +
       '<td>$' + num(x.high60) + '</td>' +
       '<td>' + Number(x.drawdownPct).toFixed(2) + '%</td>' +
       '<td>' + (x.changePct>=0?"+":"") + Number(x.changePct).toFixed(2) + '%</td>' +
       '<td>' + escapeHtml(x.date || "—") + '</td>' +
-      '<td>' + escapeHtml(positionText) + '</td>' +
+      '<td>' + escapeHtml(finvizSummary(symbol)) + '</td>' +
       '<td>' + escapeHtml(providerName(x.source)) + '</td>' +
       '<td><button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button></td>';
     bindTableRow(row,symbol);
     tbody.appendChild(row);
   });
-
   table.appendChild(tbody);
   wrap.appendChild(table);
   container.appendChild(wrap);
 }
+
 
 function checkboxHtml(symbol){
   const selected=state.selectedSymbols.includes(symbol);
@@ -697,21 +819,6 @@ function statusLabel(status){
     error: "⚠️ DATA ERROR",
     provider_unavailable: "⚠️ PROVIDER UNAVAILABLE"
   })[status] || "⚠️ DATA ERROR";
-}
-
-function tableSignalState(x,target,levels){
-  const entries=positionEntries(x.symbol);
-  if(entries.length){
-    const avgEntry=entries.reduce((sum,v)=>sum+v,0)/entries.length;
-    const pnl=(x.price/avgEntry-1)*100;
-    if(pnl >= target) return {cls:"exit",signal:"🔵 EXIT ZONE"};
-    return {cls:"watch",signal:"🟡 HOLD / WATCH"};
-  }
-  const dd=x.drawdownPct;
-  const sortedLevels=levels.slice().sort((a,b)=>a-b);
-  const reached=sortedLevels.filter(l => dd <= -l).pop();
-  if(reached) return {cls:"entry",signal:"🟢 ENTRY ZONE"};
-  return {cls:"wait",signal:"⚪ WAIT"};
 }
 
 
@@ -907,68 +1014,63 @@ async function showBackendDiagnostic(cards, backend, scanError){
 }
 
 function card(x,target,levels){
-  const entries = positionEntries(x.symbol);
   if (x.status && x.status !== "ok") return statusCard(x);
 
-  const selected = state.selectedSymbols.includes(x.symbol);
-  let cls="wait", signal="⚪ WAIT", reason="", plan="";
-  const dd=x.drawdownPct;
+  const entries=positionEntries(x.symbol);
+  const selected=state.selectedSymbols.includes(x.symbol);
+  const buy=additionalBuyState(x,levels);
   const sortedLevels=levels.slice().sort((a,b)=>a-b);
-  const reached=sortedLevels.filter(l => dd <= -l).pop();
-  const next=sortedLevels.find(l => dd > -l);
+  let cls="wait";
+  if(buy.kind==="entry") cls="entry";
+  else if(sortedLevels.length && buy.level!==null && Number(x.drawdownPct) > -buy.level && Number(x.drawdownPct) <= -(buy.level-1)) cls="watch";
 
-  if(entries.length){
-    const avgEntry=entries.reduce((sum,v)=>sum+v,0)/entries.length;
-    const pnl=(x.price/avgEntry-1)*100;
-    if(pnl >= target){
-      cls="exit"; signal="🔵 EXIT ZONE";
-      reason="Позицията е на " + pnl.toFixed(2) + "% спрямо средния вход. Целта +" + target + "% е достигната.";
-    } else {
-      cls="watch"; signal="🟡 HOLD / WATCH";
-      reason="Позицията е на " + pnl.toFixed(2) + "% спрямо средния вход. Целта е +" + target + "%.";
-    }
-  } else if(reached){
-    cls="entry"; signal="🟢 ENTRY ZONE";
-    reason="Цената е " + Math.abs(dd).toFixed(2) + "% под 60-дневния връх. Достигнато ниво: -" + reached + "%.";
-  } else {
-    cls="wait"; signal="⚪ WAIT";
-    reason=next ? "Следващо наблюдавано ниво: -" + next + "%." : "Няма активен входен сигнал.";
+  const avgEntry=entries.length ? entries.reduce((sum,v)=>sum+v,0)/entries.length : null;
+  const pnl=avgEntry!==null ? (x.price/avgEntry-1)*100 : null;
+  const positionSignal=entries.length ? (pnl>=target ? "🔵 EXIT ZONE" : "🟡 HOLD / WATCH") : "⚪ Няма позиция";
+  const positionReason=entries.length
+    ? ("Позицията е на " + pnl.toFixed(2) + "% спрямо средния вход. Целта е +" + target + "%.")
+    : "Няма въведена позиция.";
+
+  let buySignal="⚪ WAIT";
+  let buyReason=buy.level!==null ? "Следващо/активно ниво за допокупка: -" + buy.level + "%." : "Няма активно ниво за допокупка.";
+  if(buy.kind==="entry"){
+    buySignal="🟢 ENTRY ZONE";
+    buyReason="Достигнато ниво за допокупка: -" + buy.level + "% спрямо 60-дневния връх.";
   }
 
-  if(!entries.length && sortedLevels.length){
-    const planLevel = reached || next || sortedLevels[sortedLevels.length-1];
-    const planPrice = x.high60 * (1 - planLevel / 100);
-    plan = '<div class="position">Предполагаем вход: <b>$' + num(planPrice) + '</b> · ниво -' + planLevel + '%</div>';
-  }
+  const finviz=finvizSummary(x.symbol);
 
   const div=document.createElement("article");
   div.className="card " + cls + (selected ? " selected" : "");
-  div.dataset.symbolCard = x.symbol;
-  div.innerHTML =
+  div.dataset.symbolCard=x.symbol;
+  div.innerHTML=
     '<div class="top">' +
       '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
       '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
     '</div>' +
     '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
     '<div class="price">$' + num(x.price) + '</div>' +
-    '<div class="signal">' + signal + '</div>' +
+    '<div class="analysis-grid">' +
+      '<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>' + positionSignal + '</b><div class="analysis-text">' + escapeHtml(positionReason) + '</div></div>' +
+      '<div class="analysis-block buy-analysis"><div class="analysis-label">Допокупка</div><b>' + buySignal + '</b><div class="analysis-text">' + escapeHtml(buyReason) + '</div></div>' +
+    '</div>' +
     '<div class="metrics">' +
       '<div class="metric">60d high<b>$' + num(x.high60) + '</b></div>' +
-      '<div class="metric">От връха<b>' + dd.toFixed(2) + '%</b></div>' +
-      '<div class="metric">Ден<b>' + (x.changePct>=0?"+":"") + x.changePct.toFixed(2) + '%</b></div>' +
+      '<div class="metric">От връха<b>' + Number(x.drawdownPct).toFixed(2) + '%</b></div>' +
+      '<div class="metric">Ден<b>' + (x.changePct>=0?"+":"") + Number(x.changePct).toFixed(2) + '%</b></div>' +
       '<div class="metric">Обновено<b>' + escapeHtml(x.date || "—") + '</b></div>' +
     '</div>' +
-    (entries.length ? '<div class="position">Входове: <b>' + entries.length + '</b> · Среден вход: <b>$' + num(entries.reduce((sum,v)=>sum+v,0)/entries.length) + '</b> · P/L: <b>' + ((x.price/(entries.reduce((sum,v)=>sum+v,0)/entries.length)-1)*100).toFixed(2) + '%</b></div>' : plan) +
-    '<div class="reason">' + escapeHtml(reason) + '</div>' +
+    (entries.length ? '<div class="position">Входове: <b>' + entries.length + '</b> · Среден вход: <b>$' + num(avgEntry) + '</b> · P/L: <b>' + pnl.toFixed(2) + '%</b></div>' :
+      (buy.level!==null && Number.isFinite(Number(x.high60)) ? '<div class="position">Предполагаем вход: <b>$' + num(x.high60*(1-buy.level/100)) + '</b> · ниво -' + buy.level + '%</div>' : '')) +
+    '<div class="profile-status">' + escapeHtml(finviz) + '</div>' +
     '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
     '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
 
-  div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
+  div.querySelector("[data-select]").onchange=e=>setSelected(x.symbol,e.target.checked);
   div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
   div.querySelector("[data-hide]").onclick=()=>hideStock(x.symbol);
   return div;
 }
-
 function positionEntries(symbol){
   const raw=state.positions[symbol];
   if(Array.isArray(raw)) return raw.map(Number).filter(v=>Number.isFinite(v) && v>0);
