@@ -73,3 +73,12 @@ API keys remain server-side in Cloudflare Worker. The frontend sends only provid
 - Every ticker is a clickable link to its Finviz daily stock chart.
 - Strategy settings (exit target and drawdown levels) are moved to **Settings** together with Backend URL and Data Sources.
 - Settings button text is explicitly white for readability on the dark header.
+
+
+## v1.20.0
+
+- Data Source names are compact direct links to provider portals; separate account buttons were removed.
+- Secret names are editable in Settings and saved locally as configuration, without exposing secret values.
+- The Worker accepts custom secret names and falls back to the original `ALPHA_VANTAGE_KEY`, `TWELVE_DATA_API_KEY`, and `FINNHUB_API_KEY` names, so existing secrets continue to work after this update.
+- Local backup now includes the Backend URL, provider secret-name mappings, provider settings, strategy, watchlist, positions, group view/sort settings, hidden stocks, results and Finviz data.
+- Owned-position cards show current cash profit/loss next to **МОЯ ПОЗИЦИЯ**, with an up arrow for profit and a down arrow for loss.
