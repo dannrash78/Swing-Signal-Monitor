@@ -798,7 +798,7 @@ function renderGroup(title,symbols,key){
     symbols.forEach(symbol=>grid.appendChild(results.get(symbol)?card(results.get(symbol),state.target,state.levels):placeholderCard(symbol)));
     section.appendChild(grid);
   }
-  bindGroupControls(section,key,symbols);cards.appendChild(section);
+  bindGroupControls(section,key,symbols);$("cards").appendChild(section);
 }
 function renderTableGroup(section,groupSymbols,key){
   const results=new Map(state.lastResults.map(x=>[x.symbol,x])),target=state.target,levels=state.levels;
@@ -1046,59 +1046,39 @@ async function showBackendDiagnostic(cards, backend, scanError){
 
 function card(x,target,levels){
   if (x.status && x.status !== "ok") return statusCard(x);
-
   const entries=positionEntries(x.symbol);
   const selected=state.selectedSymbols.includes(x.symbol);
   const buy=additionalBuyState(x,levels);
   const sortedLevels=levels.slice().sort((a,b)=>a-b);
   let cls="wait";
   if(buy.kind==="entry") cls="entry";
-  else if(sortedLevels.length && buy.level!==null && Number(x.drawdownPct) > -buy.level && Number(x.drawdownPct) <= -(buy.level-1)) cls="watch";
-
+  else if(sortedLevels.length&&buy.level!==null&&Number(x.drawdownPct)>-buy.level&&Number(x.drawdownPct)<=-(buy.level-1)) cls="watch";
   const owned=entries.length>0;
-  const avgEntry=owned ? entries.reduce((sum,v)=>sum+v,0)/entries.length : null;
-  const pnl=owned ? (x.price/avgEntry-1)*100 : null;
-  const positionSignal=owned ? (pnl>=target ? "🔵 EXIT ZONE" : "🟡 HOLD / WATCH") : "";
-  const positionReason=owned ? ("Позицията е на " + pnl.toFixed(2) + "% спрямо средния вход. Целта е +" + target + "%.") : "";
-
+  const avgEntry=owned?weightedAverageEntry(entries):null;
+  const pnl=owned?(x.price/avgEntry-1)*100:null;
+  const positionSignal=owned?(pnl>=target?"🔵 EXIT ZONE":"🟡 HOLD / WATCH"):"";
+  const positionReason=owned?("Позицията е на "+pnl.toFixed(2)+"% спрямо средната претеглена входна цена. Целта е +"+target+"%."):"";
   let buySignal="⚪ WAIT";
-  let buyReason=buy.level!==null ? "Следващо/активно ниво за допокупка: -" + buy.level + "%." : "Няма активно ниво за допокупка.";
-  if(buy.kind==="entry"){
-    buySignal="🟢 ENTRY ZONE";
-    buyReason="Достигнато ниво за допокупка: -" + buy.level + "% спрямо 60-дневния връх.";
-  }
-
+  let buyReason=buy.level!==null?"Следващо/активно ниво за допокупка: -"+buy.level+"%.":"Няма активно ниво за допокупка.";
+  if(buy.kind==="entry"){buySignal="🟢 ENTRY ZONE";buyReason="Достигнато ниво за допокупка: -"+buy.level+"% спрямо 60-дневния връх.";}
   const finviz=finvizSummary(x.symbol);
   const div=document.createElement("article");
-  div.className="card " + cls + (selected ? " selected" : "") + (owned ? " owned-card" : "");
+  div.className="card "+cls+(selected?" selected":"")+(owned?" owned-card":"");
   div.dataset.symbolCard=x.symbol;
   div.innerHTML=
-    '<div class="top">' +
-      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
-      '<div class="owned-badge">' + (owned ? "МОЯ ПОЗИЦИЯ" : "") + '</div>' +
-    '</div>' +
-    '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
-    '<div class="price">$' + num(x.price) + '</div>' +
-    (owned ? '<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>' + positionSignal + '</b><div class="analysis-text">' + escapeHtml(positionReason) + '</div></div>' : '') +
-    '<div class="analysis-block buy-analysis"><div class="analysis-label">Допокупка</div><b>' + buySignal + '</b><div class="analysis-text">' + escapeHtml(buyReason) + '</div></div>' +
-    '<div class="metrics">' +
-      '<div class="metric">60d high<b>$' + num(x.high60) + '</b></div>' +
-      '<div class="metric">От връха<b>' + Number(x.drawdownPct).toFixed(2) + '%</b></div>' +
-      '<div class="metric">Ден<b>' + (x.changePct>=0?"+":"") + Number(x.changePct).toFixed(2) + '%</b></div>' +
-      '<div class="metric">Обновено<b>' + escapeHtml(x.date || "—") + '</b></div>' +
-    '</div>' +
-    (owned ? '<div class="position">Входове: <b>' + entries.length + '</b> · Среден вход: <b>$' + num(avgEntry) + '</b> · P/L: <b>' + pnl.toFixed(2) + '%</b></div>' :
-      (buy.level!==null && Number.isFinite(Number(x.high60)) ? '<div class="position">Предполагаем вход: <b>$' + num(x.high60*(1-buy.level/100)) + '</b> · ниво -' + buy.level + '%</div>' : '')) +
-    '<div class="profile-status">' + escapeHtml(finviz) + '</div>' +
-    '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
-    (owned ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(x.symbol) + '">Продай позицията</button>' :
-      '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>');
-
+    '<div class="top"><label class="selection"><input type="checkbox" data-select="'+escapeHtml(x.symbol)+'"'+(selected?" checked":"")+'> Заявка при Update</label><div class="owned-badge">'+(owned?"МОЯ ПОЗИЦИЯ":"")+'</div></div>'+
+    '<div class="symbol">'+tickerLink(x.symbol)+' <span class="company-name">'+escapeHtml(companyName(x.symbol))+'</span></div>'+
+    '<div class="price">$'+num(x.price)+'</div>'+
+    (owned?'<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>'+positionSignal+'</b><div class="analysis-text">'+escapeHtml(positionReason)+'</div></div>':'')+
+    '<div class="analysis-block buy-analysis"><div class="analysis-label">Допокупка</div><b>'+buySignal+'</b><div class="analysis-text">'+escapeHtml(buyReason)+'</div></div>'+
+    '<div class="metrics"><div class="metric">60d high<b>$'+num(x.high60)+'</b></div><div class="metric">От връха<b>'+Number(x.drawdownPct).toFixed(2)+'%</b></div><div class="metric">Ден<b>'+(x.changePct>=0?"+":"")+Number(x.changePct).toFixed(2)+'%</b></div><div class="metric">Обновено<b>'+escapeHtml(x.date||"—")+'</b></div></div>'+
+    (owned?'<div class="position">Покупки: <b>'+entries.length+'</b> · Средна претеглена входна цена: <b>$'+num(avgEntry)+'</b> · Печалба/загуба: <b>'+pnl.toFixed(2)+'%</b></div>':(buy.level!==null&&Number.isFinite(Number(x.high60))?'<div class="position">Предполагаем вход: <b>$'+num(x.high60*(1-buy.level/100))+'</b> · ниво -'+buy.level+'%</div>':''))+
+    '<div class="profile-status">'+escapeHtml(finviz)+'</div><div class="data-source">Data: '+escapeHtml(providerName(x.source))+'</div>'+
+    (owned?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(x.symbol)+'">Продай позицията</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(x.symbol)+'">Скрий</button>');
   div.querySelector("[data-select]").onchange=e=>setSelected(x.symbol,e.target.checked);
-  const sell=div.querySelector("[data-sell]");
-  const hide=div.querySelector("[data-hide]");
-  if(sell) sell.onclick=()=>sellPosition(x.symbol);
-  if(hide) hide.onclick=()=>hideStock(x.symbol);
+  const sell=div.querySelector("[data-sell]"),hide=div.querySelector("[data-hide]");
+  if(sell)sell.onclick=()=>sellPosition(x.symbol);
+  if(hide)hide.onclick=()=>hideStock(x.symbol);
   return div;
 }
 
