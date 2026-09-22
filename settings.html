@@ -106,10 +106,11 @@
       <div class="cloudflare-title">Cloudflare Worker</div>
       <div class="cloudflare-item"><span>Worker</span><code>swing-signal-backend</code></div>
       <div class="cloudflare-item cloudflare-secrets"><span>Secrets</span><span>Имената се задават по-горе</span></div>
+      <div class="cloudflare-item cloudflare-config"><span>Config</span><code>ALPHA_VANTAGE_SECRET_NAME</code><code>TWELVE_DATA_SECRET_NAME</code><code>FINNHUB_SECRET_NAME</code></div>
       <a class="cloudflare-link" href="https://dash.cloudflare.com/login" target="_blank" rel="noopener">Cloudflare Dashboard ↗</a>
     </div>
 
-    <p class="settings-note">Името на secret-а може да бъде променено. Текущите имена по подразбиране са запазени и се използват автоматично, ако не ги промениш. Промяната на име тук не преименува самия Cloudflare Secret — ако използваш ново име, създай secret със същото име в Worker-а.</p>
+    <p class="settings-note">Името на secret-а може да бъде променено и се включва в backup-а. За да го активираш в конкретен Worker, задай същото име в съответната Cloudflare Worker Config Variable по-горе. Ако не го промениш, текущите ти secrets <code>ALPHA_VANTAGE_KEY</code>, <code>TWELVE_DATA_API_KEY</code> и <code>FINNHUB_API_KEY</code> продължават да работят без промяна.</p>
   </section>
 </main>
 
