@@ -514,7 +514,7 @@ $("clearLog").onclick = () => {
 async function exportLocalData(){
   const payload={
     format:"Swing Signal Monitor local backup",
-    version:"1.17.0",
+    version:"1.18.0",
     exportedAt:new Date().toISOString(),
     state:JSON.parse(JSON.stringify(state)),
     targetPct:$("targetPct")?.value || String(DEFAULTS.target),
