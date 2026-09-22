@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Swing Signal Monitor — Settings</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="settings-page">
+<header>
+  <div>
+    <h1>⚙ Swing Signal Monitor <span class="version">Settings</span></h1>
+    <p>Настройки на връзката и източниците на пазарни данни</p>
+  </div>
+  <div class="header-actions">
+    <button id="backBtn" type="button" class="secondary">← Към Watchlist</button>
+  </div>
+</header>
+
+<main>
+  <section class="settings settings-page-card">
+    <h2>Връзка с Backend</h2>
+    <p class="settings-description">
+      Backend URL е адресът на твоя Cloudflare Worker. Той посредничи между инструмента
+      и доставчиците на пазарни данни. Всеки потребител може да използва собствен Worker.
+    </p>
+    <label>Backend URL
+      <input id="backendUrl" type="url" placeholder="https://your-worker.example.workers.dev" autocomplete="url">
+    </label>
+  </section>
+
+  <section class="settings settings-page-card">
+    <h2>Data Sources</h2>
+    <p class="settings-description">
+      Избери кои доставчици могат да се използват при Update. Числото определя
+      приоритета: <b>1</b> се използва първо, след това <b>2</b>, после <b>3</b>.
+      При проблем с първия активен източник инструментът може да премине към следващия.
+    </p>
+
+    <div class="settings-provider-list">
+      <div class="settings-provider-row">
+        <label class="settings-provider-name"><input id="provider-alphavantage-enabled" type="checkbox"> <b>Alpha Vantage</b></label>
+        <label>Приоритет
+          <select id="provider-alphavantage-priority"><option>1</option><option>2</option><option>3</option></select>
+        </label>
+        <p>Исторически дневни данни. Подходящ като резервен източник, но има ограничения на API квотата.</p>
+      </div>
+
+      <div class="settings-provider-row">
+        <label class="settings-provider-name"><input id="provider-twelvedata-enabled" type="checkbox"> <b>Twelve Data</b></label>
+        <label>Приоритет
+          <select id="provider-twelvedata-priority"><option>1</option><option>2</option><option>3</option></select>
+        </label>
+        <p>Дневни пазарни данни. Инструментът използва този източник за текущите изчисления, когато е избран.</p>
+      </div>
+
+      <div class="settings-provider-row">
+        <label class="settings-provider-name"><input id="provider-finnhub-enabled" type="checkbox"> <b>Finnhub</b></label>
+        <label>Приоритет
+          <select id="provider-finnhub-priority"><option>1</option><option>2</option><option>3</option></select>
+        </label>
+        <p>Алтернативен доставчик за fallback. API ключът се задава само в твоя backend, не в тази страница.</p>
+      </div>
+    </div>
+
+    <div class="settings-actions">
+      <button type="submit" form="settingsForm">Запази настройките</button>
+      <span id="saveMessage" class="settings-save-message" hidden></span>
+    </div>
+  </section>
+
+  <section class="settings settings-page-card settings-info">
+    <h2>Какво се настройва тук?</h2>
+    <ul>
+      <li><b>Backend URL</b> — към кой твой backend да изпраща заявките инструментът.</li>
+      <li><b>Enabled</b> — дали даденият доставчик може да участва в Update.</li>
+      <li><b>Priority</b> — редът, в който активните доставчици се използват.</li>
+      <li><b>API ключовете</b> не се въвеждат тук. Те остават като secrets в твоя Cloudflare Worker.</li>
+    </ul>
+  </section>
+
+  <form id="settingsForm"></form>
+</main>
+<script src="settings.js?v=1.18.0"></script>
+</body>
+</html>
