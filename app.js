@@ -229,6 +229,19 @@ $("finvizFile").onchange=async e=>{
     e.target.value="";
   }
 };
+
+const FINVIZ_PRESETS = {
+  growthTrend: "https://finviz.com/screener.ashx?v=111&f=fa_epsqoq_o10,fa_salesqoq_o10,ta_sma200_pa",
+  growthQuality: "https://finviz.com/screener.ashx?v=111&f=fa_epsqoq_o10,fa_salesqoq_o10,fa_roe_o10,fa_debteq_u1",
+  full: "https://finviz.com/screener.ashx?v=111&f=fa_epsqoq_o10,fa_salesqoq_o10,fa_roe_o10,fa_debteq_u1,ta_sma200_pa"
+};
+$("openFinvizPresetBtn").onclick=()=>{
+  const key=$("finvizPreset").value;
+  const url=FINVIZ_PRESETS[key];
+  if(!url){ alert("Избери Finviz preset."); return; }
+  window.open(url,"_blank","noopener");
+  logActivity("settings","Finviz preset opened",{preset:key,url});
+};
 renderProviderSettings();
 renderActivityLog();
 scheduleUsageReset();
@@ -408,6 +421,19 @@ function removeStock(s){
   renderCards();
 }
 
+function hasPosition(symbol){
+  return positionEntries(symbol).length > 0;
+}
+function sellPosition(symbol){
+  const entries=positionEntries(symbol);
+  if(!entries.length) return;
+  const message = "Продай цялата позиция в " + symbol + "?\n\nЩе бъдат затворени " + entries.length + " въведени входа.";
+  if(!confirm(message)) return;
+  delete state.positions[symbol];
+  save();
+  logActivity("settings","Position sold / cleared",{symbol,entries});
+  renderCards();
+}
 function setSelected(symbol, checked){
   if (checked) {
     if (!state.selectedSymbols.includes(symbol)) state.selectedSymbols.push(symbol);
@@ -499,7 +525,7 @@ $("clearLog").onclick = () => {
 async function exportLocalData(){
   const payload={
     format:"Swing Signal Monitor local backup",
-    version:"1.16.0",
+    version:"1.17.0",
     exportedAt:new Date().toISOString(),
     state:JSON.parse(JSON.stringify(state)),
     targetPct:$("targetPct")?.value || String(DEFAULTS.target),
@@ -654,28 +680,35 @@ function signalRank(x,target,levels){
 
 function getVisibleSymbols(results,target,levels){
   const visible = state.symbols.filter(symbol => !state.hiddenSymbols.includes(symbol));
-  return visible.sort((a,b) => {
+
+  const compareWithinGroup=(a,b)=>{
     if (state.sortOrder === "signal") {
       const srA=signalRank(results.get(a),target,levels);
       const srB=signalRank(results.get(b),target,levels);
       if(srA !== srB) return srA-srB;
       const pa=Number(results.get(a)?.price), pb=Number(results.get(b)?.price);
-      const av=Number.isFinite(pa), bv=Number.isFinite(pb);
-      if(av && bv && pa !== pb) return pa-pb;
+      if(Number.isFinite(pa) && Number.isFinite(pb) && pa !== pb) return pa-pb;
     }
     if (state.sortOrder === "priceAsc" || state.sortOrder === "priceDesc") {
-      const pa = Number(results.get(a)?.price);
-      const pb = Number(results.get(b)?.price);
-      const aValid = Number.isFinite(pa);
-      const bValid = Number.isFinite(pb);
-      if (!aValid && !bValid) return a.localeCompare(b,"en");
-      if (!aValid) return 1;
-      if (!bValid) return -1;
-      if (pa !== pb) return state.sortOrder === "priceAsc" ? pa - pb : pb - pa;
+      const pa=Number(results.get(a)?.price);
+      const pb=Number(results.get(b)?.price);
+      const av=Number.isFinite(pa), bv=Number.isFinite(pb);
+      if(!av && !bv) return a.localeCompare(b,"en");
+      if(!av) return 1;
+      if(!bv) return -1;
+      if(pa !== pb) return state.sortOrder === "priceAsc" ? pa-pb : pb-pa;
     }
     return a.localeCompare(b,"en");
-  });
+  };
+
+  const owned=[];
+  const others=[];
+  visible.forEach(symbol => (hasPosition(symbol) ? owned : others).push(symbol));
+  owned.sort(compareWithinGroup);
+  others.sort(compareWithinGroup);
+  return [...owned,...others];
 }
+
 
 function updateSelectAllControl(){
   const control=$("selectAllUpdates");
@@ -707,94 +740,129 @@ function renderCards(){
     return;
   }
 
-  const visibleSymbols = getVisibleSymbols(results,target,levels);
-  if (state.viewMode === "table") {
-    renderTableView(cards, visibleSymbols, results, target, levels);
-  } else {
-    visibleSymbols.forEach(symbol => {
-      const result = results.get(symbol);
-      cards.appendChild(result ? card(result,target,levels) : placeholderCard(symbol));
+  const visibleSymbols=getVisibleSymbols(results,target,levels);
+  const owned=visibleSymbols.filter(hasPosition);
+  const others=visibleSymbols.filter(symbol=>!hasPosition(symbol));
+
+  const renderGroup=(title,symbols,ownedGroup)=>{
+    if(!symbols.length) return;
+    const group=document.createElement("section");
+    group.className="watchlist-group " + (ownedGroup ? "owned-group" : "other-group");
+    group.innerHTML='<div class="watchlist-group-title"><span>' + escapeHtml(title) + '</span><span class="watchlist-count">' + symbols.length + '</span></div>';
+    const grid=document.createElement("div");
+    grid.className="watchlist-group-grid";
+    symbols.forEach(symbol=>{
+      const result=results.get(symbol);
+      grid.appendChild(result ? card(result,target,levels) : placeholderCard(symbol));
     });
-  }
+    group.appendChild(grid);
+    cards.appendChild(group);
+  };
+
+  renderGroup("Мои позиции",owned,true);
+  renderGroup("Други наблюдавани",others,false);
 
   renderWatchlistControls();
   renderHiddenList();
   updateHiddenToggle();
 }
 
+
 function renderTableView(container,symbols,results,target,levels){
-  const wrap=document.createElement("div");
-  wrap.className="table-wrap";
-  const table=document.createElement("table");
-  table.className="watchlist-table";
-  table.innerHTML=
-    '<thead><tr>' +
-      '<th>Update</th><th>Акция</th><th>Price</th><th>Позиция</th><th>Допокупка</th><th>60d high</th>' +
-      '<th>От връха</th><th>Ден</th><th>Обновено</th><th>Finviz</th><th>Data</th><th></th>' +
-    '</tr></thead>';
-  const tbody=document.createElement("tbody");
+  const owned=symbols.filter(hasPosition);
+  const others=symbols.filter(symbol=>!hasPosition(symbol));
 
-  symbols.forEach(symbol=>{
-    const x=results.get(symbol);
-    if(x && x.status && x.status!=="ok"){
+  const renderGroupTable=(title,groupSymbols)=>{
+    if(!groupSymbols.length) return;
+    const section=document.createElement("section");
+    section.className="watchlist-table-group " + (title==="Мои позиции" ? "owned-group" : "other-group");
+    const titleEl=document.createElement("div");
+    titleEl.className="watchlist-group-title";
+    titleEl.innerHTML='<span>' + escapeHtml(title) + '</span><span class="watchlist-count">' + groupSymbols.length + '</span>';
+    section.appendChild(titleEl);
+
+    const wrap=document.createElement("div");
+    wrap.className="table-wrap";
+    const table=document.createElement("table");
+    table.className="watchlist-table";
+    table.innerHTML=
+      '<thead><tr>' +
+        '<th>Update</th><th>Акция</th><th>Price</th><th>Позиция</th><th>Допокупка</th><th>60d high</th>' +
+        '<th>От връха</th><th>Ден</th><th>Обновено</th><th>Finviz</th><th>Data</th><th></th>' +
+      '</tr></thead>';
+    const tbody=document.createElement("tbody");
+
+    groupSymbols.forEach(symbol=>{
+      const x=results.get(symbol);
+      const ownedNow=hasPosition(symbol);
+      if(x && x.status && x.status!=="ok"){
+        const row=document.createElement("tr");
+        row.className="table-row error";
+        row.innerHTML=
+          '<td>' + checkboxHtml(symbol) + '</td>' +
+          '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
+          '<td>—</td><td colspan="7"><b>' + escapeHtml(statusLabel(x.status)) + '</b> ' + escapeHtml(x.error || "Няма данни.") + '</td>' +
+          '<td>' + escapeHtml(providerName(x.source)) + '</td>' +
+          '<td>' + (ownedNow ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(symbol) + '">Продай</button>' : '<button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button>') + '</td>';
+        bindTableRow(row,symbol);
+        tbody.appendChild(row);
+        return;
+      }
+
+      if(!x){
+        const row=document.createElement("tr");
+        row.className="table-row";
+        row.innerHTML=
+          '<td>' + checkboxHtml(symbol) + '</td>' +
+          '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
+          '<td colspan="8">Няма заредени данни</td>' +
+          '<td>—</td>' +
+          '<td>' + (ownedNow ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(symbol) + '">Продай</button>' : '<button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button>') + '</td>';
+        bindTableRow(row,symbol);
+        tbody.appendChild(row);
+        return;
+      }
+
+      const buy=additionalBuyState(x,levels);
+      const entries=positionEntries(x.symbol);
+      const avg=entries.length ? entries.reduce((sum,v)=>sum+v,0)/entries.length : null;
+      const pnl=avg!==null ? (x.price/avg-1)*100 : null;
+      const posText=entries.length
+        ? ((pnl>=target ? "🔵 EXIT ZONE" : "🟡 HOLD / WATCH") + " · P/L " + pnl.toFixed(2) + "%")
+        : "—";
+      const buyText=buy.kind==="entry"
+        ? "🟢 ENTRY ZONE · -" + buy.level + "%"
+        : "⚪ WAIT" + (buy.level!==null ? " · следващо -" + buy.level + "%" : "");
       const row=document.createElement("tr");
-      row.className="table-row error";
+      row.className="table-row " + (buy.kind==="entry" ? "entry" : "wait") + (ownedNow ? " owned-row" : "");
       row.innerHTML=
         '<td>' + checkboxHtml(symbol) + '</td>' +
-        '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
-        '<td>—</td><td colspan="7"><b>' + escapeHtml(statusLabel(x.status)) + '</b> ' + escapeHtml(x.error || "Няма данни.") + '</td>' +
+        '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span>' + (ownedNow ? '<span class="owned-badge">МОЯ ПОЗИЦИЯ</span>' : '') + '</td>' +
+        '<td><b>$' + num(x.price) + '</b></td>' +
+        '<td>' + escapeHtml(posText) + '</td>' +
+        '<td>' + escapeHtml(buyText) + '</td>' +
+        '<td>$' + num(x.high60) + '</td>' +
+        '<td>' + Number(x.drawdownPct).toFixed(2) + '%</td>' +
+        '<td>' + (x.changePct>=0?"+":"") + Number(x.changePct).toFixed(2) + '%</td>' +
+        '<td>' + escapeHtml(x.date || "—") + '</td>' +
+        '<td>' + escapeHtml(finvizSummary(symbol)) + '</td>' +
         '<td>' + escapeHtml(providerName(x.source)) + '</td>' +
-        '<td><button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button></td>';
+        '<td>' + (ownedNow ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(symbol) + '">Продай</button>' : '<button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button>') + '</td>';
       bindTableRow(row,symbol);
       tbody.appendChild(row);
-      return;
-    }
-    if(!x){
-      const row=document.createElement("tr");
-      row.className="table-row";
-      row.innerHTML=
-        '<td>' + checkboxHtml(symbol) + '</td>' +
-        '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
-        '<td colspan="8">Няма заредени данни</td>' +
-        '<td>—</td>' +
-        '<td><button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button></td>';
-      bindTableRow(row,symbol);
-      tbody.appendChild(row);
-      return;
-    }
+    });
 
-    const buy=additionalBuyState(x,levels);
-    const entries=positionEntries(x.symbol);
-    const avg=entries.length ? entries.reduce((sum,v)=>sum+v,0)/entries.length : null;
-    const pnl=avg!==null ? (x.price/avg-1)*100 : null;
-    const posText=entries.length
-      ? ((pnl>=target ? "🔵 EXIT ZONE" : "🟡 HOLD / WATCH") + " · P/L " + pnl.toFixed(2) + "%")
-      : "⚪ Няма позиция";
-    const buyText=buy.kind==="entry"
-      ? "🟢 ENTRY ZONE · -" + buy.level + "%"
-      : "⚪ WAIT" + (buy.level!==null ? " · следващо -" + buy.level + "%" : "");
-    const row=document.createElement("tr");
-    row.className="table-row " + (buy.kind==="entry" ? "entry" : "wait");
-    row.innerHTML=
-      '<td>' + checkboxHtml(symbol) + '</td>' +
-      '<td><b>' + escapeHtml(symbol) + '</b><span class="table-company">' + escapeHtml(companyName(symbol)) + '</span></td>' +
-      '<td><b>$' + num(x.price) + '</b></td>' +
-      '<td>' + escapeHtml(posText) + '</td>' +
-      '<td>' + escapeHtml(buyText) + '</td>' +
-      '<td>$' + num(x.high60) + '</td>' +
-      '<td>' + Number(x.drawdownPct).toFixed(2) + '%</td>' +
-      '<td>' + (x.changePct>=0?"+":"") + Number(x.changePct).toFixed(2) + '%</td>' +
-      '<td>' + escapeHtml(x.date || "—") + '</td>' +
-      '<td>' + escapeHtml(finvizSummary(symbol)) + '</td>' +
-      '<td>' + escapeHtml(providerName(x.source)) + '</td>' +
-      '<td><button type="button" class="hide-btn" data-hide="' + escapeHtml(symbol) + '">Скрий</button></td>';
-    bindTableRow(row,symbol);
-    tbody.appendChild(row);
-  });
-  table.appendChild(tbody);
-  wrap.appendChild(table);
-  container.appendChild(wrap);
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    section.appendChild(wrap);
+    container.appendChild(section);
+    section.querySelectorAll("[data-sell]").forEach(btn=>btn.onclick=()=>sellPosition(btn.dataset.sell));
+  };
+
+  renderGroupTable("Мои позиции",owned);
+  renderGroupTable("Други наблюдавани",others);
 }
+
 
 
 function checkboxHtml(symbol){
@@ -1024,12 +1092,11 @@ function card(x,target,levels){
   if(buy.kind==="entry") cls="entry";
   else if(sortedLevels.length && buy.level!==null && Number(x.drawdownPct) > -buy.level && Number(x.drawdownPct) <= -(buy.level-1)) cls="watch";
 
-  const avgEntry=entries.length ? entries.reduce((sum,v)=>sum+v,0)/entries.length : null;
-  const pnl=avgEntry!==null ? (x.price/avgEntry-1)*100 : null;
-  const positionSignal=entries.length ? (pnl>=target ? "🔵 EXIT ZONE" : "🟡 HOLD / WATCH") : "⚪ Няма позиция";
-  const positionReason=entries.length
-    ? ("Позицията е на " + pnl.toFixed(2) + "% спрямо средния вход. Целта е +" + target + "%.")
-    : "Няма въведена позиция.";
+  const owned=entries.length>0;
+  const avgEntry=owned ? entries.reduce((sum,v)=>sum+v,0)/entries.length : null;
+  const pnl=owned ? (x.price/avgEntry-1)*100 : null;
+  const positionSignal=owned ? (pnl>=target ? "🔵 EXIT ZONE" : "🟡 HOLD / WATCH") : "";
+  const positionReason=owned ? ("Позицията е на " + pnl.toFixed(2) + "% спрямо средния вход. Целта е +" + target + "%.") : "";
 
   let buySignal="⚪ WAIT";
   let buyReason=buy.level!==null ? "Следващо/активно ниво за допокупка: -" + buy.level + "%." : "Няма активно ниво за допокупка.";
@@ -1039,38 +1106,39 @@ function card(x,target,levels){
   }
 
   const finviz=finvizSummary(x.symbol);
-
   const div=document.createElement("article");
-  div.className="card " + cls + (selected ? " selected" : "");
+  div.className="card " + cls + (selected ? " selected" : "") + (owned ? " owned-card" : "");
   div.dataset.symbolCard=x.symbol;
   div.innerHTML=
     '<div class="top">' +
       '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
-      '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
+      '<div class="owned-badge">' + (owned ? "МОЯ ПОЗИЦИЯ" : "") + '</div>' +
     '</div>' +
     '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
     '<div class="price">$' + num(x.price) + '</div>' +
-    '<div class="analysis-grid">' +
-      '<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>' + positionSignal + '</b><div class="analysis-text">' + escapeHtml(positionReason) + '</div></div>' +
-      '<div class="analysis-block buy-analysis"><div class="analysis-label">Допокупка</div><b>' + buySignal + '</b><div class="analysis-text">' + escapeHtml(buyReason) + '</div></div>' +
-    '</div>' +
+    (owned ? '<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>' + positionSignal + '</b><div class="analysis-text">' + escapeHtml(positionReason) + '</div></div>' : '') +
+    '<div class="analysis-block buy-analysis"><div class="analysis-label">Допокупка</div><b>' + buySignal + '</b><div class="analysis-text">' + escapeHtml(buyReason) + '</div></div>' +
     '<div class="metrics">' +
       '<div class="metric">60d high<b>$' + num(x.high60) + '</b></div>' +
       '<div class="metric">От връха<b>' + Number(x.drawdownPct).toFixed(2) + '%</b></div>' +
       '<div class="metric">Ден<b>' + (x.changePct>=0?"+":"") + Number(x.changePct).toFixed(2) + '%</b></div>' +
       '<div class="metric">Обновено<b>' + escapeHtml(x.date || "—") + '</b></div>' +
     '</div>' +
-    (entries.length ? '<div class="position">Входове: <b>' + entries.length + '</b> · Среден вход: <b>$' + num(avgEntry) + '</b> · P/L: <b>' + pnl.toFixed(2) + '%</b></div>' :
+    (owned ? '<div class="position">Входове: <b>' + entries.length + '</b> · Среден вход: <b>$' + num(avgEntry) + '</b> · P/L: <b>' + pnl.toFixed(2) + '%</b></div>' :
       (buy.level!==null && Number.isFinite(Number(x.high60)) ? '<div class="position">Предполагаем вход: <b>$' + num(x.high60*(1-buy.level/100)) + '</b> · ниво -' + buy.level + '%</div>' : '')) +
     '<div class="profile-status">' + escapeHtml(finviz) + '</div>' +
     '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
-    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
+    (owned ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(x.symbol) + '">Продай позицията</button>' :
+      '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>');
 
   div.querySelector("[data-select]").onchange=e=>setSelected(x.symbol,e.target.checked);
-  div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
-  div.querySelector("[data-hide]").onclick=()=>hideStock(x.symbol);
+  const sell=div.querySelector("[data-sell]");
+  const hide=div.querySelector("[data-hide]");
+  if(sell) sell.onclick=()=>sellPosition(x.symbol);
+  if(hide) hide.onclick=()=>hideStock(x.symbol);
   return div;
 }
+
 function positionEntries(symbol){
   const raw=state.positions[symbol];
   if(Array.isArray(raw)) return raw.map(Number).filter(v=>Number.isFinite(v) && v>0);
@@ -1079,6 +1147,7 @@ function positionEntries(symbol){
 }
 function statusCard(x){
   const selected = state.selectedSymbols.includes(x.symbol);
+  const owned = hasPosition(x.symbol);
   const labels = {
     rate_limited: "⚠️ API LIMIT",
     no_data: "⚠️ NO DATA",
@@ -1088,24 +1157,28 @@ function statusCard(x){
     provider_unavailable: "⚠️ PROVIDER UNAVAILABLE"
   };
   const div=document.createElement("article");
-  div.className="card error" + (selected ? " selected" : "");
+  div.className="card error" + (selected ? " selected" : "") + (owned ? " owned-card" : "");
   div.dataset.symbolCard = x.symbol;
   div.innerHTML =
     '<div class="top">' +
       '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
-      '<button class="remove" data-remove="' + escapeHtml(x.symbol) + '">×</button>' +
+      '<div class="owned-badge">' + (owned ? "МОЯ ПОЗИЦИЯ" : "") + '</div>' +
     '</div>' +
     '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
     '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
     '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
     (Array.isArray(x.attempts) ? '<div class="provider-attempts">' + x.attempts.map(a => '<div><b>' + escapeHtml(providerName(a.provider)) + ':</b> ' + escapeHtml(a.status) + (a.message ? ' — ' + escapeHtml(a.message) : '') + '</div>').join('') + '</div>' : '') +
     '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
-    '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>';
+    (owned ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(x.symbol) + '">Продай позицията</button>' :
+      '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>');
   div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
-  div.querySelector("[data-remove]").onclick=()=>hideStock(x.symbol);
-  div.querySelector("[data-hide]").onclick=()=>hideStock(x.symbol);
+  const sell=div.querySelector("[data-sell]");
+  const hide=div.querySelector("[data-hide]");
+  if(sell) sell.onclick=()=>sellPosition(x.symbol);
+  if(hide) hide.onclick=()=>hideStock(x.symbol);
   return div;
 }
+
 
 const num=x=>Number(x).toFixed(2);
 function companyName(symbol){ return DEFAULTS.companyNames[symbol] || symbol; }
