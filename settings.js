@@ -1,14 +1,11 @@
 const DEFAULT_PROVIDERS = {
-  alphavantage: { enabled:true, priority:1, name:"Alpha Vantage" },
-  twelvedata: { enabled:true, priority:2, name:"Twelve Data" },
-  finnhub: { enabled:false, priority:3, name:"Finnhub" }
+  alphavantage: { enabled:true, priority:1, name:"Alpha Vantage", secretName:"ALPHA_VANTAGE_KEY" },
+  twelvedata: { enabled:true, priority:2, name:"Twelve Data", secretName:"TWELVE_DATA_API_KEY" },
+  finnhub: { enabled:false, priority:3, name:"Finnhub", secretName:"FINNHUB_API_KEY" }
 };
 
 function $(id){ return document.getElementById(id); }
-
-function readState(){
-  return JSON.parse(localStorage.getItem("swingState") || "null") || {};
-}
+function readState(){ return JSON.parse(localStorage.getItem("swingState") || "null") || {}; }
 
 function showMessage(id,text){
   const el=$(id);
@@ -21,14 +18,23 @@ function showMessage(id,text){
 function loadSettings(){
   const state=readState();
   state.providers=state.providers||{};
+  state.secretNames=state.secretNames||{};
+
   Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
     state.providers[p]={...DEFAULT_PROVIDERS[p],...(state.providers[p]||{})};
+    const secretName=state.secretNames[p] || state.providers[p].secretName || DEFAULT_PROVIDERS[p].secretName;
     $("provider-"+p+"-enabled").checked=!!state.providers[p].enabled;
     $("provider-"+p+"-priority").value=String(state.providers[p].priority);
+    $("provider-"+p+"-secret").value=secretName;
   });
+
   $("backendUrl").value=localStorage.getItem("swingBackend")||"";
   $("targetPct").value=String(Number.isFinite(Number(state.target))?state.target:10);
   $("levels").value=Array.isArray(state.levels)&&state.levels.length?state.levels.join(","):"5,8,10";
+}
+
+function validSecretName(name){
+  return /^[A-Z][A-Z0-9_]{0,62}$/.test(name);
 }
 
 function saveBackend(){
@@ -50,11 +56,28 @@ function saveStrategy(){
 function saveProviders(){
   const state=readState();
   state.providers=state.providers||{};
-  Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
+  state.secretNames=state.secretNames||{};
+
+  for(const p of Object.keys(DEFAULT_PROVIDERS)){
+    const e=$("provider-"+p+"-enabled");
+    const q=$("provider-"+p+"-priority");
+    const input=$("provider-"+p+"-secret");
+    const requested=(input?.value||"").trim().toUpperCase();
+
+    if(!validSecretName(requested)){
+      alert("Невалидно име на secret за "+DEFAULT_PROVIDERS[p].name+". Използвай само A-Z, 0-9 и _, като името започва с буква.");
+      input?.focus();
+      return;
+    }
+
     state.providers[p]={...DEFAULT_PROVIDERS[p],...(state.providers[p]||{}),
-      enabled:$("provider-"+p+"-enabled").checked,
-      priority:Number($("provider-"+p+"-priority").value)||DEFAULT_PROVIDERS[p].priority};
-  });
+      enabled:!!e?.checked,
+      priority:Number(q?.value)||DEFAULT_PROVIDERS[p].priority,
+      secretName:requested
+    };
+    state.secretNames[p]=requested;
+  }
+
   localStorage.setItem("swingState",JSON.stringify(state));
   showMessage("providersMessage","Data Sources са запазени.");
 }
@@ -66,8 +89,10 @@ $("backBtn").onclick=()=>{window.location.href="index.html";};
 
 document.querySelectorAll(".copy-secret").forEach(btn=>{
   btn.onclick=async()=>{
+    const input=$(btn.dataset.secretInput);
+    if(!input)return;
     try{
-      await navigator.clipboard.writeText(btn.dataset.copy);
+      await navigator.clipboard.writeText(input.value);
       const old=btn.textContent;
       btn.textContent="Копирано";
       setTimeout(()=>btn.textContent=old,1200);
