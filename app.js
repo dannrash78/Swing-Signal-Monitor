@@ -261,6 +261,44 @@ function populatePositionSymbols(){
   return visible;
 }
 
+
+$("addStockBtn").onclick = () => {
+  const dialog=$("addStockDialog");
+  const input=$("newStockSymbol");
+  if(!dialog || !input) return;
+  input.value="";
+  dialog.showModal();
+  setTimeout(()=>input.focus(),0);
+};
+$("cancelAddStock").onclick = () => $("addStockDialog").close();
+$("addStockForm").onsubmit = e => {
+  e.preventDefault();
+  const symbol=$("newStockSymbol").value.trim().toUpperCase();
+  if(!/^[A-Z.]{1,8}$/.test(symbol)){
+    alert("Въведи валиден ticker (A-Z и при нужда .), например ACAD.");
+    return;
+  }
+  if(state.symbols.includes(symbol)){
+    if(state.hiddenSymbols.includes(symbol)){
+      state.hiddenSymbols=state.hiddenSymbols.filter(s=>s!==symbol);
+      if(!state.selectedSymbols.includes(symbol)) state.selectedSymbols.push(symbol);
+      save();
+      $("addStockDialog").close();
+      renderCards();
+      logActivity("settings","Hidden stock restored",{symbol});
+      return;
+    }
+    alert(symbol+" вече е в Watchlist.");
+    return;
+  }
+  state.symbols.push(symbol);
+  state.selectedSymbols.push(symbol);
+  save();
+  $("addStockDialog").close();
+  renderCards();
+  logActivity("settings","Stock added to watchlist",{symbol});
+};
+
 $("addBtn").onclick = () => {
   const visible = populatePositionSymbols();
   if (!visible.length) {
