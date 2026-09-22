@@ -14,6 +14,8 @@ function loadSettings(){
   });
 
   $("backendUrl").value = localStorage.getItem("swingBackend") || "";
+  $("targetPct").value = String(Number.isFinite(Number(state.target)) ? state.target : 10);
+  $("levels").value = Array.isArray(state.levels) && state.levels.length ? state.levels.join(",") : "5,8,10";
   Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
     $("provider-"+p+"-enabled").checked = !!state.providers[p].enabled;
     $("provider-"+p+"-priority").value = String(state.providers[p].priority);
