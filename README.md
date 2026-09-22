@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.19.0
+Version 1.19.4
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -52,104 +52,20 @@ npx wrangler secret put FINNHUB_API_KEY
 npx wrangler deploy
 ```
 
-## Quota display
-
-Twelve Data usage is shown in the frontend:
-- local estimate of remaining daily credits, based on requests made through this browser;
-- current-minute remaining credits when returned by the provider.
-
-The daily browser value is an estimate, not an account-wide authoritative counter. Alpha Vantage and Finnhub remaining quotas are not presented as exact values unless the provider supplies reliable information.
-
 ## Important
 
 API keys remain server-side in Cloudflare Worker. The frontend sends only provider names/priorities, never secrets.
 
+## v1.19.4 Settings
 
-## v1.10.0 diagnostics
-
-- Provider enable/disable and priority controls are always visible in the sticky header.
-- Provider usage is shown in the page footer instead of accumulating in the settings area.
-- The browser-side request counters reset at local midnight (00:00). They are estimates for requests made through this browser, not authoritative account-wide quotas.
-- Twelve Data's Basic plan currently documents 8 API credits/minute and 800/day; its daily Basic quota resets at 00:00 UTC. Provider response headers can report exact minute credit usage. 
-- Activity Log records query, result and error events locally and can be exported as JSON.
-- The watchlist region headings span the full grid width so they no longer create a blank first tile.
-
-## Configure Twelve Data and Finnhub
-
-Set the API keys as Cloudflare Worker secrets, never in GitHub Pages/frontend files:
-
-```bash
-npx wrangler secret put TWELVE_DATA_API_KEY
-npx wrangler secret put FINNHUB_API_KEY
-npx wrangler deploy
-```
-
-After deployment use **Check Health** and then the provider's **Test NVDA** button. Health only checks backend/provider-host reachability; Test NVDA performs one real provider data request.
-
-
-## v1.11.0 watchlist display
-- Removed the regional "Американски акции" heading from the watchlist rendering.
-- Added sorting controls below the watchlist: alphabetical, Price descending, and Price ascending.
-- Added card/table visualization switch below the watchlist.
-- Full cards/table rows use a green highlight for ENTRY ZONE and yellow for HOLD/WATCH.
-- Watchlist controls are shown next to the Watchlist title.
-- Added master checkbox for selecting/deselecting all visible stocks for Update.
-- Added signal sorting with ENTRY ZONE first; price ascending remains available as a separate sort mode.
-- Table view uses visible row borders and alternating light/darker backgrounds for readability.
-
-
-## v1.12.0 watchlist controls
-- Sorting and view controls moved next to the Watchlist title.
-- Added "Всички за Update" master checkbox for visible stocks.
-- Added "Сигнал (ENTRY най-отгоре)" sorting.
-- Table rows have borders and alternating background shades; signal highlighting remains green/yellow where applicable.
-
-
-
-
-## v1.14.0 local backup
-- Removed the browser-local login gate.
-- Added **Save Data** and **Load Data** buttons to the header. They use the browser's native file picker where supported, with a download/input fallback.
-- The JSON backup contains the local watchlist state, positions, selected stocks, hidden stocks, provider settings, sort/view choices, target and drawdown levels.
-- The Backend URL is intentionally not imported from backups: each user must configure their own backend/Worker.
-- Activity Log and provider usage counters are intentionally not replaced by a backup load.
-
-
-## v1.15.0 backend configuration
-- The public frontend no longer has a default backend URL.
-- Enter the URL of your own Cloudflare Worker before using Update/Health/Test.
-- This prevents a new user from accidentally using another user's Worker and provider secrets.
-- Existing users who already saved a backend URL in their browser keep it through localStorage.
-
-
-## v1.16.0 strategy adaptation
-- Added a non-destructive Finviz fundamental layer with import from CSV.
-- Quality thresholds: D/E ≤ 1.0 and ROE ≥ 10%.
-- Growth thresholds: EPS Q/Q ≥ 10%, Sales Q/Q ≥ 10%, EPS Y/Y TTM ≥ 10%, Sales Y/Y TTM ≥ 10%.
-- Trend check: Price > SMA200 when both values are available.
-- Fundamental data is informational and does not remove a watchlist stock when data is missing or incomplete.
-- Added separate Position and Additional Buy assessments. Additional Buy uses the drawdown levels independently of existing holdings.
-- Signal sorting continues to place active ENTRY ZONE setups first.
-
-
-## v1.17.0 positions and Finviz workflow
-- Watchlist is split into **Мои позиции** and **Други наблюдавани**; owned stocks always appear first regardless of the selected sort.
-- Owned cards have a prominent **МОЯ ПОЗИЦИЯ** marker and cannot be hidden/deleted; they have a **Продай позицията** action instead.
-- When no position is held, the Position analysis block is hidden; only the Additional Buy analysis remains.
-- Selling clears all stored entry prices for that symbol while keeping the stock in the watchlist.
-- Added a direct **Open Finviz** link next to **Import Finviz CSV**.
-- Added Finviz preset links for Growth + Trend, Growth + Quality, and Growth + Quality + Trend. The preset opens Finviz in a new tab; CSV export is performed from Finviz and availability depends on the Finviz plan.
-
-
-## v1.18.0 Settings page
-- Backend URL moved from the main Watchlist page to **Settings**.
-- Data Sources enablement and provider priority moved to **Settings**.
-- Settings page explains the purpose of Backend URL, provider enablement, and priority.
-- Main page keeps strategy settings (exit target and drawdown levels) separate from connection/provider configuration.
-- Fixed the existing table-view path so selecting **Таблица** actually renders the table view.
-
+- Settings remains compact and aligned with the existing site design.
+- Provider names are direct links to their official account portals; separate "Създай акаунт" buttons were removed.
+- Cloudflare Worker information is grouped into a compact block showing the Worker name, secret names and Dashboard link.
+- The displayed secret names are the bindings expected by the current Worker code. They are not the secret values and are not editable from the public frontend.
+- The Backend URL remains user-specific and is stored locally in the browser.
 
 ## v1.19.0
+
 - The two watchlist groups have independent **Update selection, sorting, and view** controls.
 - **Мои позиции** and **Други наблюдавани** can independently use Cards or Table view and independent sort order.
 - Owned-position cards show profit/loss against the **weighted average entry price** based on purchase price and quantity.
