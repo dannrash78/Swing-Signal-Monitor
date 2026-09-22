@@ -851,3 +851,116 @@ main{padding-bottom:40px}
   .settings-minimal .provider-account-btn{width:max-content;margin-left:25px}
   .cloudflare-admin{grid-template-columns:1fr}
 }
+
+/* v1.19.4 — compact provider and Cloudflare layout */
+.settings-minimal .provider-minimal-row{
+  grid-template-columns:minmax(220px,1fr) 135px minmax(260px,1.25fr);
+}
+.settings-minimal .provider-minimal-row.provider-head{
+  grid-template-columns:minmax(220px,1fr) 135px minmax(260px,1.25fr);
+}
+.settings-minimal .provider-name-link{
+  color:#111827;
+  text-decoration:none;
+  font-size:13px;
+  font-weight:800;
+}
+.settings-minimal .provider-name-link:hover{
+  color:#2563eb;
+  text-decoration:underline;
+}
+.settings-minimal .key-name{
+  min-width:0;
+}
+.settings-minimal .cloudflare-admin{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  grid-template-areas:
+    "title worker link"
+    "title secrets link";
+  align-items:center;
+  column-gap:14px;
+  row-gap:6px;
+  margin-top:14px;
+  padding:11px 13px;
+  border:1px solid #e5e7eb;
+  border-radius:9px;
+  background:#f8fafc;
+}
+.settings-minimal .cloudflare-title{
+  grid-area:title;
+  align-self:start;
+  padding-top:2px;
+  font-size:12px;
+  font-weight:800;
+  color:#111827;
+  white-space:nowrap;
+}
+.settings-minimal .cloudflare-item{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  min-width:0;
+  font-size:11px;
+}
+.settings-minimal .cloudflare-item:nth-child(2){grid-area:worker}
+.settings-minimal .cloudflare-secrets{grid-area:secrets}
+.settings-minimal .cloudflare-item span{
+  color:#6b7280;
+  font-weight:700;
+}
+.settings-minimal .cloudflare-item code{
+  font-size:10px;
+  color:#374151;
+}
+.settings-minimal .cloudflare-secrets{
+  flex-wrap:wrap;
+}
+.settings-minimal .cloudflare-secrets code{
+  padding:2px 5px;
+  border-radius:5px;
+  background:#eef2f7;
+}
+.settings-minimal .cloudflare-link{
+  grid-area:link;
+  align-self:center;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:32px;
+  padding:6px 10px;
+  border-radius:7px;
+  background:#374151;
+  color:#fff!important;
+  text-decoration:none;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+.settings-minimal .cloudflare-link:hover{background:#4b5563}
+.settings-minimal .settings-note{
+  margin-top:10px!important;
+  padding-top:9px;
+}
+@media(max-width:900px){
+  .settings-minimal .provider-minimal-row,
+  .settings-minimal .provider-minimal-row.provider-head{
+    grid-template-columns:minmax(180px,1fr) 125px minmax(220px,1fr);
+  }
+}
+@media(max-width:700px){
+  .settings-minimal .provider-minimal-row,
+  .settings-minimal .provider-minimal-row.provider-head{
+    grid-template-columns:1fr;
+  }
+  .settings-minimal .provider-minimal-row.provider-head{display:none}
+  .settings-minimal .cloudflare-admin{
+    grid-template-columns:1fr auto;
+    grid-template-areas:
+      "title link"
+      "worker worker"
+      "secrets secrets";
+    row-gap:8px;
+  }
+  .settings-minimal .cloudflare-link{justify-self:end}
+}
