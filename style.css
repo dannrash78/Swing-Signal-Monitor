@@ -1061,3 +1061,19 @@ main{padding-bottom:40px}
 @media(max-width:700px){
   .settings-minimal .cloudflare-config{display:flex;flex-wrap:wrap;gap:6px}
 }
+
+.settings-minimal .cloudflare-admin{
+  grid-template-areas:
+    "title worker link"
+    "title secrets link"
+    "title config link";
+}
+@media(max-width:700px){
+  .settings-minimal .cloudflare-admin{
+    grid-template-areas:
+      "title link"
+      "worker worker"
+      "secrets secrets"
+      "config config";
+  }
+}
