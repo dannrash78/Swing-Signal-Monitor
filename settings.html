@@ -45,34 +45,46 @@
     <div class="settings-card-head">
       <div>
         <h2>Data Sources</h2>
-        <p>Активиране, приоритет и настройка на API доставчиците.</p>
+        <p>Активиране, приоритет и API secret names на доставчиците.</p>
       </div>
     </div>
 
     <div class="provider-minimal-list">
       <div class="provider-minimal-row provider-head">
-        <span>Източник</span><span>Приоритет</span><span>Secret / API key name</span><span>Акаунт</span>
+        <span>Източник</span><span>Приоритет</span><span>Secret / API key name</span>
       </div>
 
       <div class="provider-minimal-row">
-        <label class="provider-name"><input id="provider-alphavantage-enabled" type="checkbox"><b>Alpha Vantage</b></label>
-        <label class="priority-control">Приоритет <select id="provider-alphavantage-priority"><option>1</option><option>2</option><option>3</option></select></label>
+        <label class="provider-name">
+          <input id="provider-alphavantage-enabled" type="checkbox">
+          <a class="provider-name-link" href="https://www.alphavantage.co/accounts/signup/" target="_blank" rel="noopener">Alpha Vantage</a>
+        </label>
+        <label class="priority-control">Приоритет
+          <select id="provider-alphavantage-priority"><option>1</option><option>2</option><option>3</option></select>
+        </label>
         <span class="key-name"><code>ALPHA_VANTAGE_KEY</code><button type="button" class="copy-secret" data-copy="ALPHA_VANTAGE_KEY">Копирай</button></span>
-        <a class="provider-account-btn" href="https://www.alphavantage.co/accounts/signup/" target="_blank" rel="noopener">Създай акаунт</a>
       </div>
 
       <div class="provider-minimal-row">
-        <label class="provider-name"><input id="provider-twelvedata-enabled" type="checkbox"><b>Twelve Data</b></label>
-        <label class="priority-control">Приоритет <select id="provider-twelvedata-priority"><option>1</option><option>2</option><option>3</option></select></label>
+        <label class="provider-name">
+          <input id="provider-twelvedata-enabled" type="checkbox">
+          <a class="provider-name-link" href="https://twelvedata.com/register" target="_blank" rel="noopener">Twelve Data</a>
+        </label>
+        <label class="priority-control">Приоритет
+          <select id="provider-twelvedata-priority"><option>1</option><option>2</option><option>3</option></select>
+        </label>
         <span class="key-name"><code>TWELVE_DATA_API_KEY</code><button type="button" class="copy-secret" data-copy="TWELVE_DATA_API_KEY">Копирай</button></span>
-        <a class="provider-account-btn" href="https://twelvedata.com/register" target="_blank" rel="noopener">Създай акаунт</a>
       </div>
 
       <div class="provider-minimal-row">
-        <label class="provider-name"><input id="provider-finnhub-enabled" type="checkbox"><b>Finnhub</b></label>
-        <label class="priority-control">Приоритет <select id="provider-finnhub-priority"><option>1</option><option>2</option><option>3</option></select></label>
+        <label class="provider-name">
+          <input id="provider-finnhub-enabled" type="checkbox">
+          <a class="provider-name-link" href="https://finnhub.io/register" target="_blank" rel="noopener">Finnhub</a>
+        </label>
+        <label class="priority-control">Приоритет
+          <select id="provider-finnhub-priority"><option>1</option><option>2</option><option>3</option></select>
+        </label>
         <span class="key-name"><code>FINNHUB_API_KEY</code><button type="button" class="copy-secret" data-copy="FINNHUB_API_KEY">Копирай</button></span>
-        <a class="provider-account-btn" href="https://finnhub.io/register" target="_blank" rel="noopener">Създай акаунт</a>
       </div>
     </div>
 
@@ -82,17 +94,16 @@
     </div>
 
     <div class="cloudflare-admin">
-      <div>
-        <b>Cloudflare Worker</b>
-        <span>Worker name: <code>swing-signal-backend</code></span>
-        <span>Secrets: <code>ALPHA_VANTAGE_KEY</code> · <code>TWELVE_DATA_API_KEY</code> · <code>FINNHUB_API_KEY</code></span>
-      </div>
-      <a class="provider-account-btn" href="https://dash.cloudflare.com/login" target="_blank" rel="noopener">Cloudflare Dashboard</a>
+      <div class="cloudflare-title">Cloudflare Worker</div>
+      <div class="cloudflare-item"><span>Worker</span><code>swing-signal-backend</code></div>
+      <div class="cloudflare-item cloudflare-secrets"><span>Secrets</span><code>ALPHA_VANTAGE_KEY</code><code>TWELVE_DATA_API_KEY</code><code>FINNHUB_API_KEY</code></div>
+      <a class="cloudflare-link" href="https://dash.cloudflare.com/login" target="_blank" rel="noopener">Cloudflare Dashboard ↗</a>
     </div>
 
-    <p class="settings-note">Имената на Worker-а и secrets са фиксирани от текущия Worker код. Бутонът Cloudflare Dashboard е мястото, където се управляват Worker-ът и неговите secrets. Не съхраняваме самите API ключове в публичната страница.</p>
+    <p class="settings-note">Имената по-горе са имената, които текущият Worker очаква. Те не са самите API ключове. Самите ключове се съхраняват като Cloudflare Secrets и не се публикуват в тази страница.</p>
   </section>
-</main></main>
-<script src="settings.js?v=1.19.3"></script>
+</main>
+
+<script src="settings.js?v=1.19.4"></script>
 </body>
 </html>
