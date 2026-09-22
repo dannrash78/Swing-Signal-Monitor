@@ -10,17 +10,11 @@
 
 <header>
   <div>
-    <h1>📈 Swing Signal Monitor <span class="version">v1.17.0</span></h1>
+    <h1>📈 Swing Signal Monitor <span class="version">v1.18.0</span></h1>
     <p>Исторически тествани правила за наблюдение на swing позиции</p>
   </div>
   <div class="header-actions">
-    <div class="header-providers" aria-label="Data Sources">
-      <span class="header-providers-title">Data Sources</span>
-      <label class="header-provider"><input id="provider-alphavantage-enabled" type="checkbox"> AV <select id="provider-alphavantage-priority" aria-label="Alpha Vantage priority"><option>1</option><option>2</option><option>3</option></select></label>
-      <label class="header-provider"><input id="provider-twelvedata-enabled" type="checkbox"> TD <select id="provider-twelvedata-priority" aria-label="Twelve Data priority"><option>1</option><option>2</option><option>3</option></select></label>
-      <label class="header-provider"><input id="provider-finnhub-enabled" type="checkbox"> FH <select id="provider-finnhub-priority" aria-label="Finnhub priority"><option>1</option><option>2</option><option>3</option></select></label>
-      <button id="saveProviderHeader" type="button" class="header-save">Save</button>
-    </div>
+    <a href="settings.html" class="header-save settings-link">⚙ Settings</a>
     <div class="header-data-actions" aria-label="Local data">
       <button id="saveDataBtn" type="button" class="header-save">Save Data</button>
       <button id="loadDataBtn" type="button" class="header-save">Load Data</button>
@@ -32,16 +26,13 @@
 </header>
 <main>
   <section class="settings">
-    <label>Backend URL
-      <input id="backendUrl" type="url" value="" placeholder="Въведи адреса на твоя Cloudflare Worker" autocomplete="url">
-    </label>
     <label>Цел за изход (%)
       <input id="targetPct" type="number" value="10" min="1" max="50" step="0.5">
     </label>
     <label>Траншове
       <input id="levels" value="5,8,10" aria-label="Нива на спад">
     </label>
-    <button id="saveSettings">Запази настройки</button>
+    <button id="saveSettings">Запази стратегия</button><p class="hint settings-inline-hint">Целта за изход и нивата на спад са част от стратегията. Backend URL и Data Sources са в ⚙ Settings.</p>
     <div id="providerTestResult" class="provider-test-result" hidden></div>
   </section>
   <section>
