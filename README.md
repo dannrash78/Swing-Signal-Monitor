@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.17.0
+Version 1.18.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -140,3 +140,11 @@ After deployment use **Check Health** and then the provider's **Test NVDA** butt
 - Selling clears all stored entry prices for that symbol while keeping the stock in the watchlist.
 - Added a direct **Open Finviz** link next to **Import Finviz CSV**.
 - Added Finviz preset links for Growth + Trend, Growth + Quality, and Growth + Quality + Trend. The preset opens Finviz in a new tab; CSV export is performed from Finviz and availability depends on the Finviz plan.
+
+
+## v1.18.0 Settings page
+- Backend URL moved from the main Watchlist page to **Settings**.
+- Data Sources enablement and provider priority moved to **Settings**.
+- Settings page explains the purpose of Backend URL, provider enablement, and priority.
+- Main page keeps strategy settings (exit target and drawdown levels) separate from connection/provider configuration.
+- Fixed the existing table-view path so selecting **Таблица** actually renders the table view.
