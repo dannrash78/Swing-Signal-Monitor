@@ -6,28 +6,18 @@ const DEFAULT_PROVIDERS = {
 
 function $(id){ return document.getElementById(id); }
 
-function loadSettings(){
-  const state = JSON.parse(localStorage.getItem("swingState") || "null") || {};
-  state.providers = state.providers || {};
-  Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
-    state.providers[p] = {...DEFAULT_PROVIDERS[p], ...(state.providers[p] || {})};
-  });
-
-  $("backendUrl").value = localStorage.getItem("swingBackend") || "";
-  $("targetPct").value = String(Number.isFinite(Number(state.target)) ? state.target : 10);
-  $("levels").value = Array.isArray(state.levels) && state.levels.length ? state.levels.join(",") : "5,8,10";
-  Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
-    $("provider-"+p+"-enabled").checked = !!state.providers[p].enabled;
-    $("provider-"+p+"-priority").value = String(state.providers[p].priority);
-  });
+function readState(){
+  return JSON.parse(localStorage.getItem("swingState") || "null") || {};
 }
 
-function readState(){ return JSON.parse(localStorage.getItem("swingState") || "null") || {}; }
 function showMessage(id,text){
-  const el=$(id); if(!el)return;
-  el.hidden=false; el.textContent="✓ "+text;
+  const el=$(id);
+  if(!el)return;
+  el.hidden=false;
+  el.textContent="✓ "+text;
   setTimeout(()=>{el.hidden=true;},2500);
 }
+
 function loadSettings(){
   const state=readState();
   state.providers=state.providers||{};
@@ -40,11 +30,13 @@ function loadSettings(){
   $("targetPct").value=String(Number.isFinite(Number(state.target))?state.target:10);
   $("levels").value=Array.isArray(state.levels)&&state.levels.length?state.levels.join(","):"5,8,10";
 }
+
 function saveBackend(){
   const backend=$("backendUrl").value.trim().replace(/\/$/,"");
   localStorage.setItem("swingBackend",backend);
   showMessage("backendMessage","Backend URL е запазен.");
 }
+
 function saveStrategy(){
   const state=readState();
   const target=Number($("targetPct").value);
@@ -54,8 +46,10 @@ function saveStrategy(){
   localStorage.setItem("swingState",JSON.stringify(state));
   showMessage("strategyMessage","Стратегията е запазена.");
 }
+
 function saveProviders(){
-  const state=readState(); state.providers=state.providers||{};
+  const state=readState();
+  state.providers=state.providers||{};
   Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
     state.providers[p]={...DEFAULT_PROVIDERS[p],...(state.providers[p]||{}),
       enabled:$("provider-"+p+"-enabled").checked,
@@ -64,18 +58,21 @@ function saveProviders(){
   localStorage.setItem("swingState",JSON.stringify(state));
   showMessage("providersMessage","Data Sources са запазени.");
 }
+
 $("saveBackend").onclick=saveBackend;
 $("saveStrategy").onclick=saveStrategy;
 $("saveProviders").onclick=saveProviders;
 $("backBtn").onclick=()=>{window.location.href="index.html";};
-loadSettings();
 
 document.querySelectorAll(".copy-secret").forEach(btn=>{
   btn.onclick=async()=>{
     try{
       await navigator.clipboard.writeText(btn.dataset.copy);
-      const old=btn.textContent; btn.textContent="Копирано";
+      const old=btn.textContent;
+      btn.textContent="Копирано";
       setTimeout(()=>btn.textContent=old,1200);
     }catch(e){}
   };
 });
+
+loadSettings();
