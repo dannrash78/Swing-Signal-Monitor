@@ -20,7 +20,7 @@
 <main class="settings-minimal">
   <section class="settings-card">
     <div class="settings-row">
-      <div><h2>Backend</h2><p>Адресът на твоя Cloudflare Worker.</p></div>
+      <div><h2>Backend</h2><p>Адресът на Cloudflare Worker.</p></div>
       <div class="settings-inline">
         <input id="backendUrl" type="url" placeholder="https://your-worker.example.workers.dev" autocomplete="url">
         <button id="saveBackend" type="button">Запази</button>
@@ -45,7 +45,7 @@
     <div class="settings-card-head">
       <div>
         <h2>Data Sources</h2>
-        <p>Активиране, приоритет и API secret names на доставчиците.</p>
+        <p>Активиране, приоритет и име на secret-а, който Worker-ът използва.</p>
       </div>
     </div>
 
@@ -57,12 +57,15 @@
       <div class="provider-minimal-row">
         <label class="provider-name">
           <input id="provider-alphavantage-enabled" type="checkbox">
-          <a class="provider-name-link" href="https://www.alphavantage.co/accounts/signup/" target="_blank" rel="noopener">Alpha Vantage</a>
+          <a class="provider-name-link" href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">Alpha Vantage</a>
         </label>
         <label class="priority-control">Приоритет
           <select id="provider-alphavantage-priority"><option>1</option><option>2</option><option>3</option></select>
         </label>
-        <span class="key-name"><code>ALPHA_VANTAGE_KEY</code><button type="button" class="copy-secret" data-copy="ALPHA_VANTAGE_KEY">Копирай</button></span>
+        <span class="key-name">
+          <input id="provider-alphavantage-secret" class="secret-name-input" type="text" spellcheck="false" autocomplete="off">
+          <button type="button" class="copy-secret" data-secret-input="provider-alphavantage-secret">Копирай</button>
+        </span>
       </div>
 
       <div class="provider-minimal-row">
@@ -73,7 +76,10 @@
         <label class="priority-control">Приоритет
           <select id="provider-twelvedata-priority"><option>1</option><option>2</option><option>3</option></select>
         </label>
-        <span class="key-name"><code>TWELVE_DATA_API_KEY</code><button type="button" class="copy-secret" data-copy="TWELVE_DATA_API_KEY">Копирай</button></span>
+        <span class="key-name">
+          <input id="provider-twelvedata-secret" class="secret-name-input" type="text" spellcheck="false" autocomplete="off">
+          <button type="button" class="copy-secret" data-secret-input="provider-twelvedata-secret">Копирай</button>
+        </span>
       </div>
 
       <div class="provider-minimal-row">
@@ -84,7 +90,10 @@
         <label class="priority-control">Приоритет
           <select id="provider-finnhub-priority"><option>1</option><option>2</option><option>3</option></select>
         </label>
-        <span class="key-name"><code>FINNHUB_API_KEY</code><button type="button" class="copy-secret" data-copy="FINNHUB_API_KEY">Копирай</button></span>
+        <span class="key-name">
+          <input id="provider-finnhub-secret" class="secret-name-input" type="text" spellcheck="false" autocomplete="off">
+          <button type="button" class="copy-secret" data-secret-input="provider-finnhub-secret">Копирай</button>
+        </span>
       </div>
     </div>
 
@@ -96,14 +105,14 @@
     <div class="cloudflare-admin">
       <div class="cloudflare-title">Cloudflare Worker</div>
       <div class="cloudflare-item"><span>Worker</span><code>swing-signal-backend</code></div>
-      <div class="cloudflare-item cloudflare-secrets"><span>Secrets</span><code>ALPHA_VANTAGE_KEY</code><code>TWELVE_DATA_API_KEY</code><code>FINNHUB_API_KEY</code></div>
+      <div class="cloudflare-item cloudflare-secrets"><span>Secrets</span><span>Имената се задават по-горе</span></div>
       <a class="cloudflare-link" href="https://dash.cloudflare.com/login" target="_blank" rel="noopener">Cloudflare Dashboard ↗</a>
     </div>
 
-    <p class="settings-note">Имената по-горе са имената, които текущият Worker очаква. Те не са самите API ключове. Самите ключове се съхраняват като Cloudflare Secrets и не се публикуват в тази страница.</p>
+    <p class="settings-note">Името на secret-а може да бъде променено. Текущите имена по подразбиране са запазени и се използват автоматично, ако не ги промениш. Промяната на име тук не преименува самия Cloudflare Secret — ако използваш ново име, създай secret със същото име в Worker-а.</p>
   </section>
 </main>
 
-<script src="settings.js?v=1.19.4"></script>
+<script src="settings.js?v=1.20.0"></script>
 </body>
 </html>
