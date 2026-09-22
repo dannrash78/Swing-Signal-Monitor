@@ -79,6 +79,7 @@ API keys remain server-side in Cloudflare Worker. The frontend sends only provid
 
 - Data Source names are compact direct links to provider portals; separate account buttons were removed.
 - Secret names are editable in Settings and saved locally as configuration, without exposing secret values.
-- The Worker accepts custom secret names and falls back to the original `ALPHA_VANTAGE_KEY`, `TWELVE_DATA_API_KEY`, and `FINNHUB_API_KEY` names, so existing secrets continue to work after this update.
+- Custom secret names are supported per Worker through the non-secret configuration variables `ALPHA_VANTAGE_SECRET_NAME`, `TWELVE_DATA_SECRET_NAME`, and `FINNHUB_SECRET_NAME`. The Worker falls back to the original `ALPHA_VANTAGE_KEY`, `TWELVE_DATA_API_KEY`, and `FINNHUB_API_KEY` names, so the existing secrets continue to work unchanged.
+- The public frontend does not send arbitrary secret names to the Worker; this keeps the public endpoint from being able to select unrelated Worker secrets.
 - Local backup now includes the Backend URL, provider secret-name mappings, provider settings, strategy, watchlist, positions, group view/sort settings, hidden stocks, results and Finviz data.
 - Owned-position cards show current cash profit/loss next to **МОЯ ПОЗИЦИЯ**, with an up arrow for profit and a down arrow for loss.
