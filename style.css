@@ -527,3 +527,18 @@ main{padding-bottom:40px}
     justify-content:flex-start;
   }
 }
+
+
+/* v1.19.0 */
+.group-title-main{display:flex;align-items:center;gap:8px}
+.watchlist-group-title{justify-content:space-between;gap:14px;flex-wrap:wrap}
+.group-controls{display:flex;align-items:center;justify-content:flex-start;gap:10px;flex-wrap:wrap;padding:8px 0 10px;border-bottom:1px solid #e5e7eb;margin-bottom:12px;width:100%}
+.group-controls label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#374151}
+.group-controls select{height:32px;min-width:155px;border:1px solid #d4dae3;border-radius:7px;padding:5px 8px;background:#fff;color:#111827}
+.group-controls input[type="checkbox"]{width:17px;height:17px;accent-color:#2563eb}
+.ticker-link{color:#111827;text-decoration:none;font-weight:800}
+.ticker-link:hover{text-decoration:underline;color:#2563eb}
+.card .symbol .ticker-link{font-size:22px}
+.settings-link,.settings-link:visited,.settings-link:hover,.settings-link:active{color:#fff !important}
+.settings-strategy-grid{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:14px}
+@media(max-width:700px){.settings-strategy-grid{grid-template-columns:1fr}.group-controls{align-items:stretch}.group-controls label{width:100%}.group-controls select{flex:1}}
