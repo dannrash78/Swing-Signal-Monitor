@@ -132,10 +132,11 @@
 
   <section class="help-card">
     <h2>12. SMA — ако виждаш „—“</h2>
-    <p>Ако SMA20/SMA50/SMA200 са „—“, провери полето <b>Data</b> в картата. Ако пише <b>Cache</b>, виждаш кеширан резултат от Worker-а. В v1.24 кеш с липсващи SMA полета се счита за невалиден и се обновява при следващото зареждане.</p>
+    <p>Ако SMA20/SMA50/SMA200 са „—“, провери полето <b>Data</b> в картата. Ако пише <b>Cache</b>, виждаш кеширан резултат от Worker-а. В v1.25 е отделен нов stock cache namespace; кешът се валидира по SMA schema и кеширан резултат без нужните SMA полета не се приема за актуален.</p>
     <p>За SMA200 е нужна достатъчно дълга историческа серия. Alpha Vantage в текущата конфигурация може да върне по-къса серия, затова Worker-ът предпочита активиран provider с по-пълна история, когато такъв е наличен.</p>
     <p><b>След промяна на Worker-а:</b> той трябва да бъде deploy-нат отново в Cloudflare. След deploy натисни <b>Ctrl+F5</b> в браузъра и после <b>Update</b>. Не очаквай „—“ да се промени само от refresh на страницата, ако старият Worker още работи.</p>
     <p>При проблем провери и <b>Check Health</b>, активните Data Sources и приоритета им в Settings.</p>
+    <p><b>Provider Test:</b> тестът за отделен data source стига до Worker-а без да изпраща името на secret-а от браузъра. Secret mapping-ът е само Worker-side. Ако виждаш грешка за <code>providerSecretNamesParam</code>, браузърът зарежда стара frontend версия; направи <b>Ctrl+F5</b> след deploy на новата версия.</p>
   </section>
 
   <section class="help-card">
@@ -145,7 +146,7 @@
   </section>
 
   <section class="help-card">
-    <h2>12. Следващи аналитични стъпки</h2>
+    <h2>13. Следващи аналитични стъпки</h2>
     <p>Вече имаме Market Regime и Risk Analysis v1. Следващите отделни стъпки са ATR/volatility, volume confirmation, Relative Strength спрямо QQQ/SPY, event risk и по-късно по-задълбочен portfolio risk и backtesting.</p>
   </section>
 </main>
