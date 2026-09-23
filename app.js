@@ -1318,7 +1318,10 @@ function riskAnalysisHtml(risk){
   const size=risk.size!==null?String(risk.size):"—";
   const value=risk.positionValue!==null?"$"+num(risk.positionValue):"—";
   const rr=Number.isFinite(risk.rr)?risk.rr.toFixed(2):"—";
-  return '<div class="analysis-block risk-analysis"><div class="analysis-label">Риск анализ</div><div class="risk-grid">'+
+  const note=risk.maxRisk===null
+    ? 'Въведи Portfolio Capital в Settings, за да се изчисли размерът на позицията.'
+    : 'Stop е '+risk.stopPct+'% под входа; Risk budget е '+risk.riskPct+'% от капитала. Това е аналитичен модел, не автоматичен stop order.';
+  return '<div class="analysis-block risk-analysis" title="'+escapeHtml(note)+'"><div class="analysis-label">Риск анализ</div><div class="risk-grid">'+
     '<span>Entry <b>$'+num(risk.entry)+'</b></span>'+
     '<span>Stop <b>$'+num(risk.stop)+'</b></span>'+
     '<span>Risk/share <b>$'+num(risk.riskPerShare)+'</b></span>'+
