@@ -1334,6 +1334,7 @@ function card(x,target,levels){
   const pnlMoneyText=owned?((pnlMoney>=0?"+":"-")+"$"+Math.abs(pnlMoney).toFixed(2)):"";
   let buySignal="⚪ WAIT",buyReason=buy.level!==null?"Следващо/активно ниво за допокупка: -"+buy.level+"%.":"Няма активно ниво за допокупка.";
   if(buy.kind==="entry"){buySignal="🟢 ENTRY ZONE";buyReason="Достигнато ниво за допокупка: -"+buy.level+"% спрямо 60-дневния връх.";}
+  const buySectionTitle=owned?"Допокупка / Продажба":"Покупка";
   const finviz=finvizSummary(x.symbol),trend=stockTrend(x),action=stockAction(x,target,levels),risk=riskAnalysis(x,target,levels);
   const div=document.createElement("article");
   div.className="card "+cls+(selected?" selected":"")+(owned?" owned-card":"");
@@ -1344,7 +1345,7 @@ function card(x,target,levels){
     '<div class="price">$'+num(x.price)+'</div>'+
     '<div class="analysis-block action-analysis action-'+escapeHtml(action.kind)+'"><div class="analysis-label">Действие</div><b>'+escapeHtml(action.label)+'</b><div class="analysis-text">'+escapeHtml(action.reason)+'</div></div>'+
     (owned?'<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>'+positionSignal+'</b><div class="analysis-text">'+escapeHtml(positionReason)+'</div></div>':'')+
-    '<div class="analysis-block buy-analysis"><div class="analysis-label">Допокупка</div><b>'+buySignal+'</b><div class="analysis-text">'+escapeHtml(buyReason)+'</div></div>'+
+    '<div class="analysis-block buy-analysis"><div class="analysis-label">'+escapeHtml(buySectionTitle)+'</div><b>'+buySignal+'</b><div class="analysis-text">'+escapeHtml(buyReason)+'</div></div>'+
     riskAnalysisHtml(risk)+
     '<div class="analysis-block technical-analysis"><div class="analysis-label">Технически тренд</div><b>'+escapeHtml(trend.label)+'</b><div class="analysis-text">'+escapeHtml(trend.reason)+'</div></div>'+
     '<div class="metrics">'+
