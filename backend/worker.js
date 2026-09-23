@@ -18,7 +18,7 @@ export default {
       return json({
         ok: true,
         service: "swing-signal-backend",
-        version: "1.22.0",
+        version: "1.23.0",
         providers: await providerHealth(env)
       });
     }
@@ -71,9 +71,16 @@ export default {
         }
         try {
           const data = await fetchProvider(provider, symbol, env, usage);
-          attempts.push({ provider, status: data.result ? "ok" : (data.rateLimited ? "rate_limited" : (data.permanentError ? "error" : "no_valid_data")), message: data.message || null });
+          attempts.push({
+            provider,
+            status: data.result ? (data.result.sma200 == null ? "ok_partial" : "ok") : (data.rateLimited ? "rate_limited" : (data.permanentError ? "error" : "no_valid_data")),
+            message: data.message || null
+          });
           if (data.rateLimited) continue;
           if (data.result) {
+            const hasSma200 = Number.isFinite(Number(data.result.sma200));
+            const hasAnotherProvider = providers.indexOf(provider) < providers.length - 1;
+            if (!hasSma200 && hasAnotherProvider) continue;
             resolved = { ...data.result, source: provider };
             break;
           }
@@ -110,7 +117,7 @@ export default {
 async function checkProviderNetwork(url) {
   const started = Date.now();
   try {
-    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.22.0" } });
+    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.23.0" } });
     return { reachable: true, httpStatus: response.status, latencyMs: Date.now() - started };
   } catch (e) {
     return { reachable: false, httpStatus: null, latencyMs: Date.now() - started, error: e?.message || "Network error" };
@@ -248,6 +255,13 @@ function averageClose(rows,count){
   return Number.isFinite(avg)?avg:null;
 }
 
+function averageClose(rows,count){
+  if(!Array.isArray(rows)||rows.length<count)return null;
+  const part=rows.slice(-count);
+  const avg=part.reduce((sum,x)=>sum+Number(x.close),0)/count;
+  return Number.isFinite(avg)?avg:null;
+}
+
 function normalizeDaily(symbol, raw, source) {
   if (!raw) return null;
   let rows;
@@ -266,15 +280,13 @@ function normalizeDaily(symbol, raw, source) {
   rows.sort((a,b)=>a.date.localeCompare(b.date));
   if(rows.length<61)return null;
 
-  const latest=rows.at(-1);
-  const previous=rows.at(-2);
-  const prior20=rows.at(-21);
-  const prior60=rows.at(-61);
+  const latest=rows.at(-1),previous=rows.at(-2),prior20=rows.at(-21),prior60=rows.at(-61);
   const window=rows.slice(-61,-1);
   const high60=Math.max(...window.map(x=>x.close));
 
   return {
     symbol,status:"ok",date:latest.date,price:latest.close,
+    historyCount:rows.length,
     sma20:averageClose(rows,20),
     sma50:averageClose(rows,50),
     sma200:averageClose(rows,200),
@@ -444,7 +456,7 @@ async function putCachedMarketSymbol(symbol,result){
 }
 
 function cacheKey(symbol) {
-  return new Request("https://cache.swing-signal-backend.local/v1.22/daily/" + encodeURIComponent(symbol));
+  return new Request("https://cache.swing-signal-backend.local/v1.23/daily/" + encodeURIComponent(symbol));
 }
 
 async function getCachedSymbol(symbol) {
