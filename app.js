@@ -1311,16 +1311,13 @@ function stockAction(x,target,levels){
 
 function riskAnalysisHtml(risk){
   if(!risk?.available){
-    return '<div class="analysis-block risk-analysis"><div class="analysis-label">Риск анализ</div><div class="analysis-text">'+escapeHtml(risk?.reason||"Няма активен setup или позиция за risk analysis.")+'</div></div>';
+    return '<div class="analysis-block risk-analysis" title="'+escapeHtml(risk?.reason||"Няма активен setup или позиция за risk analysis.")+'"><div class="analysis-label">Риск анализ</div></div>';
   }
   const budget=risk.maxRisk!==null?"$"+num(risk.maxRisk):"Задай капитал";
   const current=risk.currentRiskToStop!==null?'<span>Risk to stop <b>$'+num(risk.currentRiskToStop)+'</b></span>':"";
   const size=risk.size!==null?String(risk.size):"—";
   const value=risk.positionValue!==null?"$"+num(risk.positionValue):"—";
   const rr=Number.isFinite(risk.rr)?risk.rr.toFixed(2):"—";
-  const note=risk.maxRisk===null
-    ? 'Въведи Portfolio Capital в Settings, за да се изчисли размерът на позицията.'
-    : 'Stop е '+risk.stopPct+'% под входа; Risk budget е '+risk.riskPct+'% от капитала. Това е аналитичен модел, не автоматичен stop order.';
   return '<div class="analysis-block risk-analysis"><div class="analysis-label">Риск анализ</div><div class="risk-grid">'+
     '<span>Entry <b>$'+num(risk.entry)+'</b></span>'+
     '<span>Stop <b>$'+num(risk.stop)+'</b></span>'+
@@ -1331,7 +1328,7 @@ function riskAnalysisHtml(risk){
     '<span>Position size <b>'+size+'</b></span>'+
     '<span>Position value <b>'+value+'</b></span>'+
     current+
-    '</div><div class="analysis-text">'+escapeHtml(note)+'</div></div>';
+    '</div></div>';
 }
 
 function card(x,target,levels){
@@ -1357,14 +1354,14 @@ function card(x,target,levels){
   div.className="card "+cls+(selected?" selected":"")+(owned?" owned-card":"");
   div.dataset.symbolCard=x.symbol;
   div.innerHTML=
-    '<div class="top"><label class="selection"><input type="checkbox" data-select="'+escapeHtml(x.symbol)+'"'+(selected?" checked":"")+'> Заявка при Update</label>'+(owned?'<div class="owned-position-card"><span class="owned-badge">МОЯ ПОЗИЦИЯ</span><span class="owned-pnl '+pnlClass+'"><span class="owned-pnl-icon">'+pnlIcon+'</span> '+pnlMoneyText+'</span></div>':'')+'</div>'+
+    '<div class="top"><label class="selection"><input type="checkbox" data-select="'+escapeHtml(x.symbol)+'"'+(selected?" checked":"")+'> Update</label>'+(owned?'<div class="owned-position-card"><span class="owned-pnl '+pnlClass+'"><span class="owned-pnl-icon">'+pnlIcon+'</span> '+pnlMoneyText+'</span></div>':'')+'</div>'+
     '<div class="symbol">'+tickerLink(x.symbol)+' <span class="company-name">'+escapeHtml(companyName(x.symbol))+'</span></div>'+
     '<div class="price">$'+num(x.price)+'</div>'+
-    '<div class="analysis-block action-analysis action-'+escapeHtml(action.kind)+'"><div class="analysis-label">Действие</div><b>'+escapeHtml(action.label)+'</b><div class="analysis-text">'+escapeHtml(action.reason)+'</div></div>'+
-    (owned?'<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>'+positionSignal+'</b><div class="analysis-text">'+escapeHtml(positionReason)+'</div></div>':'')+
-    '<div class="analysis-block buy-analysis"><div class="analysis-label">'+escapeHtml(buySectionTitle)+'</div><b>'+buySignal+'</b><div class="analysis-text">'+escapeHtml(buyReason)+'</div></div>'+
+    '<div class="analysis-block action-analysis action-'+escapeHtml(action.kind)+'" title="'+escapeHtml(action.reason)+'"><div class="analysis-label">Действие</div><b>'+escapeHtml(action.label)+'</b></div>'+
+    (owned?'<div class="analysis-block position-analysis" title="'+escapeHtml(positionReason)+'"><div class="analysis-label">Позиция</div><b>'+positionSignal+'</b></div>':'')+
+    '<div class="analysis-block buy-analysis" title="'+escapeHtml(buyReason)+'"><div class="analysis-label">'+escapeHtml(buySectionTitle)+'</div><b>'+buySignal+'</b></div>'+
     riskAnalysisHtml(risk)+
-    '<div class="analysis-block technical-analysis"><div class="analysis-label">Технически тренд</div><b>'+escapeHtml(trend.label)+'</b><div class="analysis-text">'+escapeHtml(trend.reason)+'</div></div>'+
+    '<div class="analysis-block technical-analysis" title="'+escapeHtml(trend.reason)+'"><div class="analysis-label">Технически тренд</div><b>'+escapeHtml(trend.label)+'</b></div>'+
     '<div class="metrics">'+
       '<div class="metric">SMA20<b>'+(Number.isFinite(Number(x.sma20))?"$"+num(x.sma20):"—")+'</b></div>'+
       '<div class="metric">SMA50<b>'+(Number.isFinite(Number(x.sma50))?"$"+num(x.sma50):"—")+'</b></div>'+
@@ -1372,11 +1369,11 @@ function card(x,target,levels){
       '<div class="metric">60d high<b>$'+num(x.high60)+'</b></div>'+
       '<div class="metric">От връха<b>'+Number(x.drawdownPct).toFixed(2)+'%</b></div>'+
       '<div class="metric">Ден<b>'+(x.changePct>=0?"+":"")+Number(x.changePct).toFixed(2)+'%</b></div>'+
-      '<div class="metric">Обновено<b>'+escapeHtml(x.date||"—")+'</b></div>'+
+      '<div class="metric">Обновено<b>'+escapeHtml(x.priceUpdatedAt ? new Date(x.priceUpdatedAt).toLocaleString() : (x.date||"—"))+'</b></div>'+
       '<div class="metric">Market<b>'+escapeHtml(state.marketRegime?.label||"—")+'</b></div>'+
     '</div>'+
     (owned?'<div class="position">Покупки: <b>'+entries.length+'</b> · Средна претеглена входна цена: <b>$'+num(avgEntry)+'</b> · Печалба/загуба: <b>'+pnl.toFixed(2)+'%</b></div>':(buy.level!==null&&Number.isFinite(Number(x.high60))?'<div class="position">Предполагаем вход: <b>$'+num(x.high60*(1-buy.level/100))+'</b> · ниво -'+buy.level+'%</div>':''))+
-    '<div class="profile-status">'+escapeHtml(finviz)+'</div><div class="data-source">Data: '+escapeHtml(providerName(x.source))+'</div>'+
+    '<div class="profile-status">'+escapeHtml(finviz)+'</div><div class="data-source">Data: '+escapeHtml(providerName(x.source))+(x.priceStatus==="live"?' · Price: LIVE':x.priceStatus==="cached_fallback"?' · Price: CACHE FALLBACK':'')+'</div>'+
     (owned?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(x.symbol)+'">Продай позицията</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(x.symbol)+'">Скрий</button>');
   if(owned){
     const positionEl=div.querySelector(".position");
@@ -1422,8 +1419,8 @@ function statusCard(x){
   div.dataset.symbolCard = x.symbol;
   div.innerHTML =
     '<div class="top">' +
-      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Заявка при Update</label>' +
-      '<div class="owned-badge">' + (owned ? "МОЯ ПОЗИЦИЯ" : "") + '</div>' +
+      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Update</label>' +
+      '' +
     '</div>' +
     '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
     '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
