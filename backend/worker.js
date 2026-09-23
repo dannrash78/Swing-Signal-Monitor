@@ -23,7 +23,7 @@ export default {
       return json({
         ok: true,
         service: "swing-signal-backend",
-        version: "1.25.0",
+        version: "1.25.3",
         providers: await providerHealth(env)
       });
     }
@@ -64,51 +64,116 @@ export default {
 
     for (const symbol of symbols) {
       const cached = await getCachedSymbol(symbol, completeSmaProviderAvailable);
-      if (cached) {
-        results.push({ ...cached, source: "cache" });
-        continue;
-      }
 
-      let resolved = null;
-      const attempts = [];
+      // Always try a fresh quote first. Historical/SMA data may come from cache.
+      let live = null;
+      const liveAttempts = [];
       for (const provider of providers) {
         if (!isConfigured(provider, env)) {
-          attempts.push({ provider, status: "not_configured" });
+          liveAttempts.push({ provider, status: "not_configured" });
           continue;
         }
         try {
-          const data = await fetchProvider(provider, symbol, env, usage);
-          attempts.push({
+          const data = await fetchCurrentPrice(provider, symbol, env, usage);
+          liveAttempts.push({
             provider,
-            status: data.result ? (data.result.sma200 == null ? "ok_partial" : "ok") : (data.rateLimited ? "rate_limited" : (data.permanentError ? "error" : "no_valid_data")),
+            status: data.result ? "ok" : (data.rateLimited ? "rate_limited" : (data.permanentError ? "error" : "no_valid_data")),
             message: data.message || null
           });
           if (data.rateLimited) continue;
           if (data.result) {
-            const hasSma200 = Number.isFinite(Number(data.result.sma200));
-            const hasAnotherProvider = providers.indexOf(provider) < providers.length - 1;
-            if (!hasSma200 && hasAnotherProvider) continue;
-            resolved = { ...data.result, source: provider };
+            live = { ...data.result, source: provider };
             break;
           }
-          if (data.permanentError) continue;
         } catch (e) {
-          attempts.push({ provider, status: "network_error", message: e?.message || "Network error" });
-          // Try the next enabled provider.
+          liveAttempts.push({ provider, status: "network_error", message: e?.message || "Network error" });
         }
       }
 
-      if (resolved) {
-        results.push(resolved);
-        await putCachedSymbol(symbol, resolved, ctx);
-      } else {
-        results.push({
-          symbol,
-          status: "provider_unavailable",
-          error: "No enabled data provider returned valid data.",
-          attempts
-        });
+      let historical = cached;
+      const historyAttempts = [];
+
+      // Only fetch the expensive daily history when the cache is missing.
+      if (!historical) {
+        for (const provider of providers) {
+          if (!isConfigured(provider, env)) {
+            historyAttempts.push({ provider, status: "not_configured" });
+            continue;
+          }
+          try {
+            const data = await fetchProvider(provider, symbol, env, usage);
+            historyAttempts.push({
+              provider,
+              status: data.result ? (data.result.sma200 == null ? "ok_partial" : "ok") : (data.rateLimited ? "rate_limited" : (data.permanentError ? "error" : "no_valid_data")),
+              message: data.message || null
+            });
+            if (data.rateLimited) continue;
+            if (data.result) {
+              const hasSma200 = Number.isFinite(Number(data.result.sma200));
+              const hasAnotherProvider = providers.indexOf(provider) < providers.length - 1;
+              if (!hasSma200 && hasAnotherProvider) continue;
+              historical = { ...data.result, source: provider };
+              break;
+            }
+          } catch (e) {
+            historyAttempts.push({ provider, status: "network_error", message: e?.message || "Network error" });
+          }
+        }
       }
+
+      if (live && historical) {
+        const price = Number(live.price);
+        const high60 = Number(historical.high60);
+        const resolved = {
+          ...historical,
+          price,
+          changePct: Number.isFinite(Number(live.changePct)) ? Number(live.changePct) : historical.changePct,
+          source: historical.source || live.source,
+          priceSource: live.source,
+          priceStatus: "live",
+          priceUpdatedAt: live.updatedAt || new Date().toISOString(),
+          liveQuote: true
+        };
+        if (Number.isFinite(price) && Number.isFinite(high60) && high60 > 0) {
+          resolved.drawdownPct = (price / high60 - 1) * 100;
+        }
+        results.push(resolved);
+        if (!cached) await putCachedSymbol(symbol, historical, ctx);
+        continue;
+      }
+
+      // If live update fails, use the cached historical snapshot as the fallback.
+      if (!live && cached) {
+        results.push({
+          ...cached,
+          source: "cache",
+          priceSource: "cache",
+          priceStatus: "cached_fallback",
+          liveQuote: false,
+          liveQuoteAttempts: liveAttempts
+        });
+        continue;
+      }
+
+      // First load: if there is no cache and live quote failed, use fresh history if available.
+      if (!live && historical) {
+        results.push({
+          ...historical,
+          priceSource: "history",
+          priceStatus: "historical_fallback",
+          liveQuote: false,
+          liveQuoteAttempts: liveAttempts
+        });
+        if (!cached) await putCachedSymbol(symbol, historical, ctx);
+        continue;
+      }
+
+      results.push({
+        symbol,
+        status: "provider_unavailable",
+        error: "No enabled data provider returned a live quote or valid historical data.",
+        attempts: [...liveAttempts, ...historyAttempts]
+      });
     }
 
     return json({
@@ -194,6 +259,79 @@ async function fetchProvider(provider, symbol, env, usage) {
   if (provider === "alphavantage") return fetchAlphaVantage(symbol, key, usage);
   if (provider === "twelvedata") return fetchTwelveData(symbol, key, usage);
   return fetchFinnhub(symbol, key, usage);
+}
+
+async function fetchCurrentPrice(provider, symbol, env, usage) {
+  const key = getSecret(env, provider);
+  if (provider === "alphavantage") return fetchAlphaVantageQuote(symbol, key, usage);
+  if (provider === "twelvedata") return fetchTwelveDataQuote(symbol, key, usage);
+  return fetchFinnhubQuote(symbol, key, usage);
+}
+
+async function fetchAlphaVantageQuote(symbol, key, usage) {
+  const api = new URL("https://www.alphavantage.co/query");
+  api.searchParams.set("function", "GLOBAL_QUOTE");
+  api.searchParams.set("symbol", symbol);
+  api.searchParams.set("apikey", key);
+  const response = await fetch(api);
+  const data = await response.json();
+  usage.alphavantage.apiCalls++;
+  if (data["Note"] || data["Information"]) return { rateLimited: true, message: data["Note"] || data["Information"] };
+  if (data["Error Message"]) return { permanentError: true, message: data["Error Message"] };
+  const q = data["Global Quote"] || {};
+  const price = Number(q["05. price"]);
+  if (!Number.isFinite(price) || price <= 0) return { permanentError: true, message: "No valid live quote returned." };
+  return {
+    result: {
+      price,
+      changePct: Number(q["10. change percent"]?.replace("%","")),
+      updatedAt: new Date().toISOString()
+    }
+  };
+}
+
+async function fetchTwelveDataQuote(symbol, key, usage) {
+  const api = new URL("https://api.twelvedata.com/quote");
+  api.searchParams.set("symbol", symbol);
+  api.searchParams.set("apikey", key);
+  const response = await fetch(api);
+  const data = await response.json();
+  usage.twelvedata.apiCalls++;
+  const left = Number(response.headers.get("api-credits-left"));
+  if (Number.isFinite(left)) usage.twelvedata.minuteCreditsLeft = left;
+  if (data.status === "error" || data.code === 429 || /limit|credit|quota/i.test(data.message || "")) {
+    return { rateLimited: true, message: data.message || "Rate limit / credit limit" };
+  }
+  const price = Number(data.close);
+  if (!Number.isFinite(price) || price <= 0) return { permanentError: true, message: data.message || "No valid live quote returned." };
+  const quoteTs = Number(data.last_quote_at || data.timestamp);
+  return {
+    result: {
+      price,
+      changePct: Number(data.percent_change),
+      updatedAt: Number.isFinite(quoteTs) && quoteTs > 0 ? new Date(quoteTs * 1000).toISOString() : new Date().toISOString()
+    }
+  };
+}
+
+async function fetchFinnhubQuote(symbol, key, usage) {
+  const api = new URL("https://finnhub.io/api/v1/quote");
+  api.searchParams.set("symbol", symbol);
+  api.searchParams.set("token", key);
+  const response = await fetch(api);
+  const data = await response.json();
+  usage.finnhub.apiCalls++;
+  if (response.status === 429) return { rateLimited: true, message: "HTTP 429 rate limit" };
+  if (!response.ok) return { permanentError: true, message: data.error || ("HTTP " + response.status) };
+  const price = Number(data.c);
+  if (!Number.isFinite(price) || price <= 0) return { permanentError: true, message: "No valid live quote returned." };
+  return {
+    result: {
+      price,
+      changePct: Number(data.dp),
+      updatedAt: Number.isFinite(Number(data.t)) && Number(data.t) > 0 ? new Date(Number(data.t) * 1000).toISOString() : new Date().toISOString()
+    }
+  };
 }
 
 async function fetchAlphaVantage(symbol, key, usage) {
@@ -468,7 +606,13 @@ async function getCachedSymbol(symbol, requireCompleteSma = false) {
 }
 
 async function putCachedSymbol(symbol, result, ctx) {
-  const response = new Response(JSON.stringify(result), {
+  const cached = { ...result };
+  delete cached.priceSource;
+  delete cached.priceStatus;
+  delete cached.priceUpdatedAt;
+  delete cached.liveQuote;
+  delete cached.liveQuoteAttempts;
+  const response = new Response(JSON.stringify(cached), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "public, max-age=" + CACHE_TTL_SECONDS
