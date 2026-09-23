@@ -55,8 +55,10 @@ export default {
       finnhub: { configured: !!getSecret(env, "finnhub"), apiCalls: 0, remaining: null }
     };
 
+    const completeSmaProviderAvailable = providers.some(p => (p === "twelvedata" || p === "finnhub") && isConfigured(p, env));
+
     for (const symbol of symbols) {
-      const cached = await getCachedSymbol(symbol);
+      const cached = await getCachedSymbol(symbol, completeSmaProviderAvailable);
       if (cached) {
         results.push({ ...cached, source: "cache" });
         continue;
@@ -459,13 +461,14 @@ function cacheKey(symbol) {
   return new Request("https://cache.swing-signal-backend.local/v1.24/daily/" + encodeURIComponent(symbol));
 }
 
-async function getCachedSymbol(symbol) {
+async function getCachedSymbol(symbol, requireCompleteSma = false) {
   const response = await caches.default.match(cacheKey(symbol));
   if (!response) return null;
   try {
     const cached = await response.json();
     if (!cached || cached.cacheSchema !== "sma-v1") return null;
     if (!Number.isFinite(Number(cached.sma20)) || !Number.isFinite(Number(cached.sma50))) return null;
+    if (requireCompleteSma && !Number.isFinite(Number(cached.sma200))) return null;
     return cached;
   } catch {
     return null;
