@@ -1413,7 +1413,7 @@ function card(x,target,levels){
       '<div class="metric">Обновено<b>'+escapeHtml(x.date||"—")+'</b></div>'+
       '<div class="metric">Market<b>'+escapeHtml(state.marketRegime?.label||"—")+'</b></div>'+
     '</div>'+
-    (owned?'<div class="position">Покупки: <b>'+entries.length+'</b> · Общо акции: <b>'+totalQuantity+'</b> · Средна претеглена входна цена: <b>
+    (owned?'<div class="position">Покупки: <b>'+entries.length+'</b> · Общо акции: <b>'+totalQuantity+'</b> · Средна претеглена входна цена: <b>$'+num(avgEntry)+'</b> · Печалба/загуба: <b>'+pnl.toFixed(2)+'%</b></div>':(buy.level!==null&&Number.isFinite(Number(x.high60))?'<div class="position">Предполагаем вход: <b>$'+num(x.high60*(1-buy.level/100))+'</b> · ниво -'+buy.level+'%</div>':''))+ 
     '<div class="profile-status">'+escapeHtml(finviz)+'</div><div class="data-source">Data: '+escapeHtml(providerName(x.source))+'</div>'+
     (owned?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(x.symbol)+'">Продай позицията</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(x.symbol)+'">Скрий</button>');
   div.querySelector("[data-select]").onchange=e=>setSelected(x.symbol,e.target.checked);
