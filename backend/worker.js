@@ -444,7 +444,7 @@ async function putCachedMarketSymbol(symbol,result){
 }
 
 function cacheKey(symbol) {
-  return new Request("https://cache.swing-signal-backend.local/v1/daily/" + encodeURIComponent(symbol));
+  return new Request("https://cache.swing-signal-backend.local/v1.22/daily/" + encodeURIComponent(symbol));
 }
 
 async function getCachedSymbol(symbol) {
