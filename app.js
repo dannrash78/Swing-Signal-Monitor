@@ -1223,29 +1223,59 @@ async function showBackendDiagnostic(cards, backend, scanError){
   }
 }
 
+function stockTrend(x){
+  const price=Number(x?.price),s20=Number(x?.sma20),s50=Number(x?.sma50),s200=Number(x?.sma200);
+  if(!Number.isFinite(price))return {kind:"unknown",label:"UNKNOWN",reason:"Няма текуща цена."};
+  if(Number.isFinite(s20)&&Number.isFinite(s50)&&Number.isFinite(s200)){
+    if(price>s20&&price>s50&&price>s200&&s50>s200)return {kind:"bull",label:"UPTREND",reason:"Цена над SMA20, SMA50 и SMA200; SMA50 е над SMA200."};
+    if(price<s20&&price<s50&&price<s200&&s50<s200)return {kind:"bear",label:"DOWNTREND",reason:"Цена под SMA20, SMA50 и SMA200; SMA50 е под SMA200."};
+    return {kind:"neutral",label:"TRANSITION",reason:"Цената и средните са в смесена конфигурация."};
+  }
+  if(Number.isFinite(s20)&&Number.isFinite(s50)){
+    if(price>s20&&price>s50)return {kind:"bull",label:"BULLISH",reason:"Цена над SMA20 и SMA50; SMA200 не е налична от този data source."};
+    if(price<s20&&price<s50)return {kind:"bear",label:"BEARISH",reason:"Цена под SMA20 и SMA50; SMA200 не е налична от този data source."};
+  }
+  return {kind:"neutral",label:"INCOMPLETE",reason:"Недостатъчно SMA данни за пълен trend прочит."};
+}
+function stockAction(x,target,levels){
+  const buy=additionalBuyState(x,levels);
+  const trend=stockTrend(x);
+  const market=state.marketRegime?.kind||"unknown";
+  const entries=positionEntries(x.symbol);
+  if(entries.length){
+    const avg=weightedAverageEntry(entries),pnl=avg!==null?(Number(x.price)/avg-1)*100:null;
+    if(Number.isFinite(pnl)&&pnl>=target)return {kind:"exit",label:"REVIEW EXIT",reason:"Постигната е зададената цел +"+target+"%. Провери trend, market regime и риска."};
+    if(market==="risk-off"&&trend.kind==="bear")return {kind:"risk",label:"REVIEW RISK",reason:"Позицията е в Risk-Off пазар и технически слаб trend. Следи риска, не само P/L."};
+    return {kind:"hold",label:"HOLD / MANAGE",reason:"Позицията остава под целта. Управлявай според trend, market regime и риска."};
+  }
+  if(market==="unknown")return {kind:"info",label:"UPDATE MARKET",reason:"Преди действие зареди Market Regime за SPY/QQQ."};
+  if(buy.kind==="entry"){
+    if(market==="risk-on"&&trend.kind==="bull")return {kind:"entry",label:"ENTRY REVIEW",reason:"Достигнато е drawdown ниво при Risk-On и bullish trend. Това е setup за преглед, не автоматична покупка."};
+    if(market==="risk-off")return {kind:"wait",label:"WAIT / REVIEW",reason:"Достигнато е drawdown ниво, но пазарът е Risk-Off. Изчакай потвърждение и прецени риска."};
+    return {kind:"watch",label:"WATCH / REVIEW",reason:"Има ENTRY ZONE, но market/trend не са едновременно потвърдени."};
+  }
+  if(buy.level!==null)return {kind:"watch",label:"WATCH",reason:"Следващото зададено drawdown ниво е -"+buy.level+"%."};
+  return {kind:"wait",label:"WAIT",reason:"Няма активно drawdown ниво за допокупка."};
+}
+
 function card(x,target,levels){
   if (x.status && x.status !== "ok") return statusCard(x);
-  const entries=positionEntries(x.symbol);
-  const selected=state.selectedSymbols.includes(x.symbol);
-  const buy=additionalBuyState(x,levels);
-  const sortedLevels=levels.slice().sort((a,b)=>a-b);
+  const entries=positionEntries(x.symbol),selected=state.selectedSymbols.includes(x.symbol);
+  const buy=additionalBuyState(x,levels),sortedLevels=levels.slice().sort((a,b)=>a-b);
   let cls="wait";
   if(buy.kind==="entry") cls="entry";
   else if(sortedLevels.length&&buy.level!==null&&Number(x.drawdownPct)>-buy.level&&Number(x.drawdownPct)<=-(buy.level-1)) cls="watch";
-  const owned=entries.length>0;
-  const avgEntry=owned?weightedAverageEntry(entries):null;
+  const owned=entries.length>0,avgEntry=owned?weightedAverageEntry(entries):null;
   const totalQuantity=owned?entries.reduce((sum,e)=>sum+Number(e.quantity||0),0):0;
-  const pnl=owned?(x.price/avgEntry-1)*100:null;
-  const pnlMoney=owned?(x.price-avgEntry)*totalQuantity:null;
+  const pnl=owned?(x.price/avgEntry-1)*100:null,pnlMoney=owned?(x.price-avgEntry)*totalQuantity:null;
   const positionSignal=owned?(pnl>=target?"🔵 EXIT ZONE":"🟡 HOLD / WATCH"):"";
   const positionReason=owned?("Позицията е на "+pnl.toFixed(2)+"% спрямо средната претеглена входна цена. Целта е +"+target+"%."):"";
   const pnlClass=owned?(pnlMoney>0?"profit":pnlMoney<0?"loss":"neutral"):"";
   const pnlIcon=owned?(pnlMoney>0?"↑":pnlMoney<0?"↓":"→"):"";
   const pnlMoneyText=owned?((pnlMoney>=0?"+":"-")+"$"+Math.abs(pnlMoney).toFixed(2)):"";
-  let buySignal="⚪ WAIT";
-  let buyReason=buy.level!==null?"Следващо/активно ниво за допокупка: -"+buy.level+"%.":"Няма активно ниво за допокупка.";
+  let buySignal="⚪ WAIT",buyReason=buy.level!==null?"Следващо/активно ниво за допокупка: -"+buy.level+"%.":"Няма активно ниво за допокупка.";
   if(buy.kind==="entry"){buySignal="🟢 ENTRY ZONE";buyReason="Достигнато ниво за допокупка: -"+buy.level+"% спрямо 60-дневния връх.";}
-  const finviz=finvizSummary(x.symbol);
+  const finviz=finvizSummary(x.symbol),trend=stockTrend(x),action=stockAction(x,target,levels);
   const div=document.createElement("article");
   div.className="card "+cls+(selected?" selected":"")+(owned?" owned-card":"");
   div.dataset.symbolCard=x.symbol;
@@ -1253,9 +1283,20 @@ function card(x,target,levels){
     '<div class="top"><label class="selection"><input type="checkbox" data-select="'+escapeHtml(x.symbol)+'"'+(selected?" checked":"")+'> Заявка при Update</label>'+(owned?'<div class="owned-position-card"><span class="owned-badge">МОЯ ПОЗИЦИЯ</span><span class="owned-pnl '+pnlClass+'"><span class="owned-pnl-icon">'+pnlIcon+'</span> '+pnlMoneyText+'</span></div>':'')+'</div>'+
     '<div class="symbol">'+tickerLink(x.symbol)+' <span class="company-name">'+escapeHtml(companyName(x.symbol))+'</span></div>'+
     '<div class="price">$'+num(x.price)+'</div>'+
+    '<div class="analysis-block action-analysis action-'+escapeHtml(action.kind)+'"><div class="analysis-label">Действие</div><b>'+escapeHtml(action.label)+'</b><div class="analysis-text">'+escapeHtml(action.reason)+'</div></div>'+
     (owned?'<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>'+positionSignal+'</b><div class="analysis-text">'+escapeHtml(positionReason)+'</div></div>':'')+
     '<div class="analysis-block buy-analysis"><div class="analysis-label">Допокупка</div><b>'+buySignal+'</b><div class="analysis-text">'+escapeHtml(buyReason)+'</div></div>'+
-    '<div class="metrics"><div class="metric">60d high<b>$'+num(x.high60)+'</b></div><div class="metric">От връха<b>'+Number(x.drawdownPct).toFixed(2)+'%</b></div><div class="metric">Ден<b>'+(x.changePct>=0?"+":"")+Number(x.changePct).toFixed(2)+'%</b></div><div class="metric">Обновено<b>'+escapeHtml(x.date||"—")+'</b></div></div>'+
+    '<div class="analysis-block technical-analysis"><div class="analysis-label">Технически тренд</div><b>'+escapeHtml(trend.label)+'</b><div class="analysis-text">'+escapeHtml(trend.reason)+'</div></div>'+
+    '<div class="metrics">'+
+      '<div class="metric">SMA20<b>'+(Number.isFinite(Number(x.sma20))?"$"+num(x.sma20):"—")+'</b></div>'+
+      '<div class="metric">SMA50<b>'+(Number.isFinite(Number(x.sma50))?"$"+num(x.sma50):"—")+'</b></div>'+
+      '<div class="metric">SMA200<b>'+(Number.isFinite(Number(x.sma200))?"$"+num(x.sma200):"—")+'</b></div>'+
+      '<div class="metric">60d high<b>$'+num(x.high60)+'</b></div>'+
+      '<div class="metric">От връха<b>'+Number(x.drawdownPct).toFixed(2)+'%</b></div>'+
+      '<div class="metric">Ден<b>'+(x.changePct>=0?"+":"")+Number(x.changePct).toFixed(2)+'%</b></div>'+
+      '<div class="metric">Обновено<b>'+escapeHtml(x.date||"—")+'</b></div>'+
+      '<div class="metric">Market<b>'+escapeHtml(state.marketRegime?.label||"—")+'</b></div>'+
+    '</div>'+
     (owned?'<div class="position">Покупки: <b>'+entries.length+'</b> · Средна претеглена входна цена: <b>$'+num(avgEntry)+'</b> · Печалба/загуба: <b>'+pnl.toFixed(2)+'%</b></div>':(buy.level!==null&&Number.isFinite(Number(x.high60))?'<div class="position">Предполагаем вход: <b>$'+num(x.high60*(1-buy.level/100))+'</b> · ниво -'+buy.level+'%</div>':''))+
     '<div class="profile-status">'+escapeHtml(finviz)+'</div><div class="data-source">Data: '+escapeHtml(providerName(x.source))+'</div>'+
     (owned?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(x.symbol)+'">Продай позицията</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(x.symbol)+'">Скрий</button>');
