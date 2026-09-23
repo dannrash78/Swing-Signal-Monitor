@@ -18,7 +18,7 @@ export default {
       return json({
         ok: true,
         service: "swing-signal-backend",
-        version: "1.23.0",
+        version: "1.24.0",
         providers: await providerHealth(env)
       });
     }
@@ -117,7 +117,7 @@ export default {
 async function checkProviderNetwork(url) {
   const started = Date.now();
   try {
-    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.23.0" } });
+    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.24.0" } });
     return { reachable: true, httpStatus: response.status, latencyMs: Date.now() - started };
   } catch (e) {
     return { reachable: false, httpStatus: null, latencyMs: Date.now() - started, error: e?.message || "Network error" };
@@ -285,7 +285,7 @@ function normalizeDaily(symbol, raw, source) {
   const high60=Math.max(...window.map(x=>x.close));
 
   return {
-    symbol,status:"ok",date:latest.date,price:latest.close,
+    symbol,status:"ok",cacheSchema:"sma-v1",date:latest.date,price:latest.close,
     historyCount:rows.length,
     sma20:averageClose(rows,20),
     sma50:averageClose(rows,50),
@@ -456,13 +456,20 @@ async function putCachedMarketSymbol(symbol,result){
 }
 
 function cacheKey(symbol) {
-  return new Request("https://cache.swing-signal-backend.local/v1.23/daily/" + encodeURIComponent(symbol));
+  return new Request("https://cache.swing-signal-backend.local/v1.24/daily/" + encodeURIComponent(symbol));
 }
 
 async function getCachedSymbol(symbol) {
   const response = await caches.default.match(cacheKey(symbol));
   if (!response) return null;
-  try { return await response.json(); } catch { return null; }
+  try {
+    const cached = await response.json();
+    if (!cached || cached.cacheSchema !== "sma-v1") return null;
+    if (!Number.isFinite(Number(cached.sma20)) || !Number.isFinite(Number(cached.sma50))) return null;
+    return cached;
+  } catch {
+    return null;
+  }
 }
 
 async function putCachedSymbol(symbol, result, ctx) {
