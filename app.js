@@ -880,7 +880,7 @@ function renderTableGroup(section,groupSymbols,key){
   const results=new Map(state.lastResults.map(x=>[x.symbol,x])),target=state.target,levels=state.levels;
   const wrap=document.createElement("div");wrap.className="table-wrap";
   const table=document.createElement("table");table.className="watchlist-table";
-  table.innerHTML='<thead><tr><th>Update</th><th>Акция</th><th>Price</th><th>Позиция</th><th>Допокупка</th><th>60d high</th><th>От връха</th><th>Ден</th><th>Обновено</th><th>Finviz</th><th>Data</th><th></th></tr></thead>';
+  table.innerHTML='<thead><tr><th>Update</th><th>Акция</th><th>Price</th><th>Позиция</th><th>'+(key==="owned"?"Допокупка / Продажба":"Покупка")+'</th><th>60d high</th><th>От връха</th><th>Ден</th><th>Обновено</th><th>Finviz</th><th>Data</th><th></th></tr></thead>';
   const tbody=document.createElement("tbody");
   groupSymbols.forEach(symbol=>{
     const x=results.get(symbol),ownedNow=hasPosition(symbol);
@@ -959,7 +959,7 @@ async function testProvider(provider){
   result.innerHTML = "<b>Тест:</b> " + escapeHtml(providerName(provider)) + " / NVDA…";
   logActivity("provider_test", "Query started", {provider, symbol:"NVDA"});
   try{
-    const r = await fetch(backend + "/api/test?provider=" + encodeURIComponent(provider) + "&symbol=NVDA&secretNames=" + providerSecretNamesParam(),{cache:"no-store"});
+    const r = await fetch(backend + "/api/test?provider=" + encodeURIComponent(provider) + "&symbol=NVDA",{cache:"no-store"});
     const data = await r.json();
     updateUsagePanel(data.usage);
     logActivity("provider_test", data.ok ? "Result OK" : "Result/Error", {provider, symbol:"NVDA", status:data.status, message:data.message || data.error || null, result:data.result || null}, data.ok ? "info" : "error");
@@ -970,7 +970,7 @@ async function testProvider(provider){
       "<p><b>Symbol:</b> NVDA</p>" +
       (data.message ? "<p><b>Причина:</b> " + escapeHtml(data.message) + "</p>" : "") +
       (data.error ? "<p><b>Грешка:</b> " + escapeHtml(data.error) + "</p>" : "") +
-      (data.result ? "<p><b>Цена:</b> $" + escapeHtml(num(data.result.price)) + " · <b>Дата:</b> " + escapeHtml(data.result.date) + "</p>" : "") +
+      (data.result ? "<p><b>Цена:</b> $" + escapeHtml(num(data.result.price)) + " · <b>Дата:</b> " + escapeHtml(data.result.date) + "</p><p><b>SMA20:</b> " + escapeHtml(data.result.sma20 != null ? "$" + num(data.result.sma20) : "—") + " · <b>SMA50:</b> " + escapeHtml(data.result.sma50 != null ? "$" + num(data.result.sma50) : "—") + " · <b>SMA200:</b> " + escapeHtml(data.result.sma200 != null ? "$" + num(data.result.sma200) : "—") + " · <b>History:</b> " + escapeHtml(String(data.result.historyCount ?? "—")) + "</p>" : "") +
       "<p><b>API calls:</b> " + escapeHtml(String(data.usage?.[provider]?.apiCalls ?? "—")) + "</p>";
   }catch(e){
     logActivity("provider_test", "Network/Backend error", {provider, symbol:"NVDA", error:e.message || "Няма връзка."}, "error");
