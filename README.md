@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.22.0
+Version 1.23.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -107,3 +107,12 @@ API keys remain server-side in Cloudflare Worker. The frontend sends only provid
 - Added a transparent rule-based **Action** layer combining position state, the stock drawdown signal, Market Regime and technical trend.
 - Action labels include `ENTRY REVIEW`, `WATCH / REVIEW`, `WAIT / REVIEW`, `HOLD / MANAGE`, `REVIEW EXIT`, `REVIEW RISK` and `UPDATE MARKET`.
 - Stock-provider history is expanded where supported so SMA200 can be calculated; old stock cache entries are invalidated for the new result schema.
+
+
+## v1.23.0
+
+- Added Risk settings for portfolio capital, risk per trade and fixed stop percentage.
+- Added Risk Analysis to stock cards with Entry, Stop, Risk/share, Target, R/R, risk budget, position size and position value.
+- For held positions, Risk Analysis also shows current modeled risk to the stop.
+- Risk calculations are informational and do not place orders.
+- Fixed SMA refresh issue by invalidating the previous stock cache namespace and preferring a provider with sufficient history for SMA200 when available; Alpha Vantage free `compact` history may still not provide 200 daily observations.
