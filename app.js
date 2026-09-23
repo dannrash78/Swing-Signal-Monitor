@@ -1292,6 +1292,31 @@ function stockAction(x,target,levels){
   return {kind:"wait",label:"WAIT",reason:"Няма активно drawdown ниво за допокупка."};
 }
 
+function riskAnalysisHtml(risk){
+  if(!risk?.available){
+    return '<div class="analysis-block risk-analysis"><div class="analysis-label">Риск анализ</div><div class="analysis-text">'+escapeHtml(risk?.reason||"Няма активен setup или позиция за risk analysis.")+'</div></div>';
+  }
+  const budget=risk.maxRisk!==null?"$"+num(risk.maxRisk):"Задай капитал";
+  const current=risk.currentRiskToStop!==null?'<span>Risk to stop <b>$'+num(risk.currentRiskToStop)+'</b></span>':"";
+  const size=risk.size!==null?String(risk.size):"—";
+  const value=risk.positionValue!==null?"$"+num(risk.positionValue):"—";
+  const rr=Number.isFinite(risk.rr)?risk.rr.toFixed(2):"—";
+  const note=risk.maxRisk===null
+    ? 'Въведи Portfolio Capital в Settings, за да се изчисли размерът на позицията.'
+    : 'Stop е '+risk.stopPct+'% под входа; Risk budget е '+risk.riskPct+'% от капитала. Това е аналитичен модел, не автоматичен stop order.';
+  return '<div class="analysis-block risk-analysis"><div class="analysis-label">Риск анализ</div><div class="risk-grid">'+
+    '<span>Entry <b>$'+num(risk.entry)+'</b></span>'+
+    '<span>Stop <b>$'+num(risk.stop)+'</b></span>'+
+    '<span>Risk/share <b>$'+num(risk.riskPerShare)+'</b></span>'+
+    '<span>Target <b>$'+num(risk.targetPrice)+'</b></span>'+
+    '<span>R/R <b>'+rr+'</b></span>'+
+    '<span>Risk budget <b>'+budget+'</b></span>'+
+    '<span>Position size <b>'+size+'</b></span>'+
+    '<span>Position value <b>'+value+'</b></span>'+
+    current+
+    '</div><div class="analysis-text">'+escapeHtml(note)+'</div></div>';
+}
+
 function card(x,target,levels){
   if (x.status && x.status !== "ok") return statusCard(x);
   const entries=positionEntries(x.symbol),selected=state.selectedSymbols.includes(x.symbol);
@@ -1309,7 +1334,7 @@ function card(x,target,levels){
   const pnlMoneyText=owned?((pnlMoney>=0?"+":"-")+"$"+Math.abs(pnlMoney).toFixed(2)):"";
   let buySignal="⚪ WAIT",buyReason=buy.level!==null?"Следващо/активно ниво за допокупка: -"+buy.level+"%.":"Няма активно ниво за допокупка.";
   if(buy.kind==="entry"){buySignal="🟢 ENTRY ZONE";buyReason="Достигнато ниво за допокупка: -"+buy.level+"% спрямо 60-дневния връх.";}
-  const finviz=finvizSummary(x.symbol),trend=stockTrend(x),action=stockAction(x,target,levels);
+  const finviz=finvizSummary(x.symbol),trend=stockTrend(x),action=stockAction(x,target,levels),risk=riskAnalysis(x,target,levels);
   const div=document.createElement("article");
   div.className="card "+cls+(selected?" selected":"")+(owned?" owned-card":"");
   div.dataset.symbolCard=x.symbol;
