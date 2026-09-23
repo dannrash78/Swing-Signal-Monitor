@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.23.0
+Version 1.24.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -116,3 +116,12 @@ API keys remain server-side in Cloudflare Worker. The frontend sends only provid
 - For held positions, Risk Analysis also shows current modeled risk to the stop.
 - Risk calculations are informational and do not place orders.
 - Fixed SMA refresh issue by invalidating the previous stock cache namespace and preferring a provider with sufficient history for SMA200 when available; Alpha Vantage free `compact` history may still not provide 200 daily observations.
+
+
+## v1.24.0
+
+- Fixed stale stock-cache handling so cached results without the SMA schema are refreshed instead of being displayed as current.
+- Stock data now uses a schema marker for SMA-enabled results; the stock cache namespace was advanced to force a clean refresh after Worker deployment.
+- Existing provider fallback remains in place; when possible, the Worker prefers a result with SMA200 rather than accepting a partial shorter-history result from an earlier provider.
+- On owned-position cards, the section label is **Допокупка / Продажба**; on unowned watchlist cards it is **Покупка**.
+- Help clarifies that Market Regime **RISK-ON** means higher market risk appetite, not higher risk of the individual stock, and includes SMA refresh troubleshooting.
