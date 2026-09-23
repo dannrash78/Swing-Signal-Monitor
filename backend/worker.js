@@ -18,7 +18,7 @@ export default {
       return json({
         ok: true,
         service: "swing-signal-backend",
-        version: "1.21.0",
+        version: "1.22.0",
         providers: await providerHealth(env)
       });
     }
@@ -110,7 +110,7 @@ export default {
 async function checkProviderNetwork(url) {
   const started = Date.now();
   try {
-    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.21.0" } });
+    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.22.0" } });
     return { reachable: true, httpStatus: response.status, latencyMs: Date.now() - started };
   } catch (e) {
     return { reachable: false, httpStatus: null, latencyMs: Date.now() - started, error: e?.message || "Network error" };
@@ -202,7 +202,7 @@ async function fetchTwelveData(symbol, key, usage) {
   const api = new URL("https://api.twelvedata.com/time_series");
   api.searchParams.set("symbol", symbol);
   api.searchParams.set("interval", "1day");
-  api.searchParams.set("outputsize", "61");
+  api.searchParams.set("outputsize", "220");
   api.searchParams.set("apikey", key);
   const response = await fetch(api);
   const data = await response.json();
@@ -220,7 +220,7 @@ async function fetchTwelveData(symbol, key, usage) {
 
 async function fetchFinnhub(symbol, key, usage) {
   const to = Math.floor(Date.now() / 1000);
-  const from = to - 90 * 24 * 60 * 60;
+  const from = to - 450 * 24 * 60 * 60;
   const api = new URL("https://finnhub.io/api/v1/stock/candle");
   api.searchParams.set("symbol", symbol);
   api.searchParams.set("resolution", "D");
@@ -241,6 +241,13 @@ async function fetchFinnhub(symbol, key, usage) {
   return result ? { result } : { permanentError: true, message: "No valid daily history returned." };
 }
 
+function averageClose(rows,count){
+  if(!Array.isArray(rows)||rows.length<count)return null;
+  const part=rows.slice(-count);
+  const avg=part.reduce((sum,x)=>sum+Number(x.close),0)/count;
+  return Number.isFinite(avg)?avg:null;
+}
+
 function normalizeDaily(symbol, raw, source) {
   if (!raw) return null;
   let rows;
@@ -256,22 +263,26 @@ function normalizeDaily(symbol, raw, source) {
     })).filter(x => Number.isFinite(x.close));
   }
 
-  rows.sort((a, b) => a.date.localeCompare(b.date));
-  if (rows.length < 61) return null;
+  rows.sort((a,b)=>a.date.localeCompare(b.date));
+  if(rows.length<61)return null;
 
-  const latest = rows.at(-1);
-  const previous = rows.at(-2);
-  const window = rows.slice(-61, -1);
-  const high60 = Math.max(...window.map(x => x.close));
+  const latest=rows.at(-1);
+  const previous=rows.at(-2);
+  const prior20=rows.at(-21);
+  const prior60=rows.at(-61);
+  const window=rows.slice(-61,-1);
+  const high60=Math.max(...window.map(x=>x.close));
 
   return {
-    symbol,
-    status: "ok",
-    date: latest.date,
-    price: latest.close,
+    symbol,status:"ok",date:latest.date,price:latest.close,
+    sma20:averageClose(rows,20),
+    sma50:averageClose(rows,50),
+    sma200:averageClose(rows,200),
+    return20:prior20?(latest.close/prior20.close-1)*100:null,
+    return60:prior60?(latest.close/prior60.close-1)*100:null,
     high60,
-    drawdownPct: (latest.close / high60 - 1) * 100,
-    changePct: (latest.close / previous.close - 1) * 100
+    drawdownPct:(latest.close/high60-1)*100,
+    changePct:previous?(latest.close/previous.close-1)*100:null
   };
 }
 
