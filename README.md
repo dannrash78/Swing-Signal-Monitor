@@ -125,3 +125,12 @@ API keys remain server-side in Cloudflare Worker. The frontend sends only provid
 - Existing provider fallback remains in place; when possible, the Worker prefers a result with SMA200 rather than accepting a partial shorter-history result from an earlier provider.
 - On owned-position cards, the section label is **Допокупка / Продажба**; on unowned watchlist cards it is **Покупка**.
 - Help clarifies that Market Regime **RISK-ON** means higher market risk appetite, not higher risk of the individual stock, and includes SMA refresh troubleshooting.
+
+
+## v1.25.0
+
+- Fixed the public Provider Test regression caused by a stale providerSecretNamesParam reference; provider tests now use the secure Worker-side secret mapping without sending secret names from the browser.
+- Advanced the stock cache namespace to v1.25 so older cached results without SMA fields cannot be treated as current.
+- Stock normalized results expose smaStatus and historyCount for diagnostics.
+- Provider Test output now shows SMA20/SMA50/SMA200 and history count when returned.
+- Help updated with Risk-On terminology and SMA/provider troubleshooting.
