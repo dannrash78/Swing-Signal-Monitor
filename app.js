@@ -881,29 +881,50 @@ function renderTableGroup(section,groupSymbols,key){
   const wrap=document.createElement("div");wrap.className="table-wrap";
   const table=document.createElement("table");table.className="watchlist-table";
   const tradeColumnTitle=key==="owned"?"Допокупка / Продажба":"Покупка";
-  table.innerHTML='<thead><tr><th>Update</th><th>Акция</th><th>Price</th><th>Позиция</th><th>'+escapeHtml(tradeColumnTitle)+'</th><th>SMA20</th><th>SMA50</th><th>SMA200</th><th>R/R</th><th>60d high</th><th>От връха</th><th>Ден</th><th>Обновено</th><th>Finviz</th><th>Data</th><th></th></tr></thead>';
+  table.innerHTML='<thead><tr><th>Update</th><th>Акция</th><th>Price</th><th>Действие</th><th>Trend</th><th>Позиция</th><th>'+escapeHtml(tradeColumnTitle)+'</th><th>SMA20</th><th>SMA50</th><th>SMA200</th><th>R/R</th><th>60d high</th><th>От връха</th><th>Ден</th><th>Обновено</th><th>Finviz</th><th>Data</th><th></th></tr></thead>';
   const tbody=document.createElement("tbody");
   groupSymbols.forEach(symbol=>{
     const x=results.get(symbol),ownedNow=hasPosition(symbol);
     if(x&&x.status&&x.status!=="ok"){
       const row=document.createElement("tr");row.className="table-row error";
-      row.innerHTML='<td>'+checkboxHtml(symbol)+'</td><td>'+tickerLink(symbol)+'<span class="table-company">'+escapeHtml(companyName(symbol))+'</span></td><td>—</td><td colspan="7"><b>'+escapeHtml(statusLabel(x.status))+'</b> '+escapeHtml(x.error||"Няма данни.")+'</td><td>'+escapeHtml(providerName(x.source))+'</td><td>'+(ownedNow?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(symbol)+'">Продай</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(symbol)+'">Скрий</button>')+'</td>';
+      row.innerHTML='<td>'+checkboxHtml(symbol)+'</td><td>'+tickerLink(symbol)+'<span class="table-company">'+escapeHtml(companyName(symbol))+'</span></td><td>—</td><td colspan="13"><b>'+escapeHtml(statusLabel(x.status))+'</b> '+escapeHtml(x.error||"Няма данни.")+'</td><td>'+escapeHtml(providerName(x.source))+'</td><td>'+(ownedNow?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(symbol)+'">Продай</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(symbol)+'">Скрий</button>')+'</td>';
       bindTableRow(row,symbol);tbody.appendChild(row);return;
     }
     if(!x){
       const row=document.createElement("tr");row.className="table-row";
-      row.innerHTML='<td>'+checkboxHtml(symbol)+'</td><td>'+tickerLink(symbol)+'<span class="table-company">'+escapeHtml(companyName(symbol))+'</span></td><td colspan="8">Няма заредени данни</td><td>—</td><td>'+(ownedNow?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(symbol)+'">Продай</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(symbol)+'">Скрий</button>')+'</td>';
+      row.innerHTML='<td>'+checkboxHtml(symbol)+'</td><td>'+tickerLink(symbol)+'<span class="table-company">'+escapeHtml(companyName(symbol))+'</span></td><td colspan="14">Няма заредени данни</td><td>—</td><td>'+(ownedNow?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(symbol)+'">Продай</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(symbol)+'">Скрий</button>')+'</td>';
       bindTableRow(row,symbol);tbody.appendChild(row);return;
     }
-    const buy=additionalBuyState(x,levels),entries=positionEntries(symbol),avg=weightedAverageEntry(entries),pnl=avg!==null?(x.price/avg-1)*100:null;
-    const action=stockAction(x,target,levels),trend=stockTrend(x),risk=riskAnalysis(x,target,levels);
+    const buy=additionalBuyState(x,levels);
+    const entries=positionEntries(symbol);
+    const avg=weightedAverageEntry(entries);
+    const pnl=avg!==null?(x.price/avg-1)*100:null;
+    const action=stockAction(x,target,levels);
+    const trend=stockTrend(x);
+    const risk=riskAnalysis(x,target,levels);
     const posText=entries.length?((pnl>=target?"🔵 EXIT ZONE":"🟡 HOLD / WATCH")+" · P/L "+pnl.toFixed(2)+"%"):"—";
-    const buyText=buy.kind==="entry"?"🟢 ENTRY ZONE · -"+buy.level+"%":"⚪ WAIT"+(buy.level!==null?" · следващо -"+buy.level+"%":"");
-    const row=document.createElement("tr");row.className="table-row "+(buy.kind==="entry"?"entry":"wait")+(ownedNow?" owned-row":"");
-    const actionText='<b>'+escapeHtml(action.label)+'</b><div class="table-company">'+escapeHtml(action.reason)+'</div>';
-    const trendText='<b>'+escapeHtml(trend.label)+'</b>';
-    const rrText=risk.available&&Number.isFinite(risk.rr)?risk.rr.toFixed(2):"—";
-    row.innerHTML='<td>'+checkboxHtml(symbol)+'</td><td>'+tickerLink(symbol)+'<span class="table-company">'+escapeHtml(companyName(symbol))+'</span>'+(ownedNow?'<span class="owned-badge">МОЯ ПОЗИЦИЯ</span>':"")+'</td><td><b><td>'+Number(x.drawdownPct).toFixed(2)+'%</td><td>'+(x.changePct>=0?"+":"")+Number(x.changePct).toFixed(2)+'%</td><td>'+escapeHtml(x.date||"—")+'</td><td>'+escapeHtml(finvizSummary(symbol))+'</td><td>'+escapeHtml(providerName(x.source))+'</td><td>'+(ownedNow?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(symbol)+'">Продай</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(symbol)+'">Скрий</button>')+'</td>';
+    const tradeText=buy.kind==="entry"?"🟢 "+(ownedNow?"ENTRY":"ENTRY")+" ZONE · -"+buy.level+"%":"⚪ WAIT"+(buy.level!==null?" · следващо -"+buy.level+"%":"");
+    const row=document.createElement("tr");
+    row.className="table-row "+(buy.kind==="entry"?"entry":"wait")+(ownedNow?" owned-row":"");
+    row.innerHTML=
+      '<td>'+checkboxHtml(symbol)+'</td>'+
+      '<td>'+tickerLink(symbol)+'<span class="table-company">'+escapeHtml(companyName(symbol))+'</span>'+(ownedNow?'<span class="owned-badge">МОЯ ПОЗИЦИЯ</span>':"")+'</td>'+
+      '<td><b>$'+num(x.price)+'</b></td>'+
+      '<td><b>'+escapeHtml(action.label)+'</b><div class="table-company">'+escapeHtml(action.reason)+'</div></td>'+
+      '<td><b>'+escapeHtml(trend.label)+'</b></td>'+
+      '<td>'+escapeHtml(posText)+'</td>'+
+      '<td>'+escapeHtml(tradeText)+'</td>'+
+      '<td>'+(Number.isFinite(Number(x.sma20))?"$"+num(x.sma20):"—")+'</td>'+
+      '<td>'+(Number.isFinite(Number(x.sma50))?"$"+num(x.sma50):"—")+'</td>'+
+      '<td>'+(Number.isFinite(Number(x.sma200))?"$"+num(x.sma200):"—")+'</td>'+
+      '<td>'+(risk.available&&Number.isFinite(risk.rr)?risk.rr.toFixed(2):"—")+'</td>'+
+      '<td>$'+num(x.high60)+'</td>'+
+      '<td>'+Number(x.drawdownPct).toFixed(2)+'%</td>'+
+      '<td>'+(x.changePct>=0?"+":"")+Number(x.changePct).toFixed(2)+'%</td>'+
+      '<td>'+escapeHtml(x.date||"—")+'</td>'+
+      '<td>'+escapeHtml(finvizSummary(symbol))+'</td>'+
+      '<td>'+escapeHtml(providerName(x.source))+'</td>'+
+      '<td>'+(ownedNow?'<button type="button" class="sell-btn" data-sell="'+escapeHtml(symbol)+'">Продай</button>':'<button type="button" class="hide-btn" data-hide="'+escapeHtml(symbol)+'">Скрий</button>')+'</td>';
     bindTableRow(row,symbol);tbody.appendChild(row);
   });
   table.appendChild(tbody);wrap.appendChild(table);section.appendChild(wrap);
