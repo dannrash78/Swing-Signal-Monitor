@@ -1,6 +1,6 @@
 # Swing Signal Monitor
 
-Version 1.21.1
+Version 1.22.0
 
 GitHub Pages frontend + Cloudflare Worker backend for informational swing monitoring.
 
@@ -99,3 +99,11 @@ API keys remain server-side in Cloudflare Worker. The frontend sends only provid
 
 - Added **+ Добави акция** for adding an individual ticker to the Watchlist without opening a position.
 - Added step-by-step Help instructions for adding a ticker, exporting a single ticker's data from Finviz Screener as CSV, importing it into the tool, and then running Market/stock Update.
+
+
+## v1.22.0
+
+- Added SMA20, SMA50 and SMA200 metrics to the stock cards when sufficient provider history is available.
+- Added a transparent rule-based **Action** layer combining position state, the stock drawdown signal, Market Regime and technical trend.
+- Action labels include `ENTRY REVIEW`, `WATCH / REVIEW`, `WAIT / REVIEW`, `HOLD / MANAGE`, `REVIEW EXIT`, `REVIEW RISK` and `UPDATE MARKET`.
+- Stock-provider history is expanded where supported so SMA200 can be calculated; old stock cache entries are invalidated for the new result schema.
