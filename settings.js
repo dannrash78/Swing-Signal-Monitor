@@ -31,6 +31,10 @@ function loadSettings(){
   $("backendUrl").value=localStorage.getItem("swingBackend")||"";
   $("targetPct").value=String(Number.isFinite(Number(state.target))?state.target:10);
   $("levels").value=Array.isArray(state.levels)&&state.levels.length?state.levels.join(","):"5,8,10";
+  const risk=state.risk||{};
+  $("portfolioCapital").value=String(Number.isFinite(Number(risk.portfolioCapital))?risk.portfolioCapital:0);
+  $("riskPerTradePct").value=String(Number.isFinite(Number(risk.riskPerTradePct))?risk.riskPerTradePct:1);
+  $("stopLossPct").value=String(Number.isFinite(Number(risk.stopLossPct))?risk.stopLossPct:7);
 }
 
 function validSecretName(name){
@@ -51,6 +55,20 @@ function saveStrategy(){
   state.levels=levels.length?levels:[5,8,10];
   localStorage.setItem("swingState",JSON.stringify(state));
   showMessage("strategyMessage","Стратегията е запазена.");
+}
+
+function saveRisk(){
+  const state=readState();
+  const portfolio=Number($("portfolioCapital").value);
+  const riskPct=Number($("riskPerTradePct").value);
+  const stopPct=Number($("stopLossPct").value);
+  state.risk={
+    portfolioCapital:Number.isFinite(portfolio)&&portfolio>=0?portfolio:0,
+    riskPerTradePct:Number.isFinite(riskPct)&&riskPct>=0.1?Math.min(10,riskPct):1,
+    stopLossPct:Number.isFinite(stopPct)&&stopPct>=0.5?Math.min(50,stopPct):7
+  };
+  localStorage.setItem("swingState",JSON.stringify(state));
+  showMessage("riskMessage","Risk настройките са запазени.");
 }
 
 function saveProviders(){
@@ -84,6 +102,7 @@ function saveProviders(){
 
 $("saveBackend").onclick=saveBackend;
 $("saveStrategy").onclick=saveStrategy;
+$("saveRisk").onclick=saveRisk;
 $("saveProviders").onclick=saveProviders;
 $("backBtn").onclick=()=>{window.location.href="index.html";};
 
