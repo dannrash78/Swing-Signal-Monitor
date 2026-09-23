@@ -18,7 +18,7 @@ export default {
       return json({
         ok: true,
         service: "swing-signal-backend",
-        version: "1.24.0",
+        version: "1.25.0",
         providers: await providerHealth(env)
       });
     }
@@ -119,7 +119,7 @@ export default {
 async function checkProviderNetwork(url) {
   const started = Date.now();
   try {
-    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.24.0" } });
+    const response = await fetch(url, { method: "GET", headers: { "User-Agent": "Swing-Signal-Monitor-Health/1.25.0" } });
     return { reachable: true, httpStatus: response.status, latencyMs: Date.now() - started };
   } catch (e) {
     return { reachable: false, httpStatus: null, latencyMs: Date.now() - started, error: e?.message || "Network error" };
@@ -257,13 +257,6 @@ function averageClose(rows,count){
   return Number.isFinite(avg)?avg:null;
 }
 
-function averageClose(rows,count){
-  if(!Array.isArray(rows)||rows.length<count)return null;
-  const part=rows.slice(-count);
-  const avg=part.reduce((sum,x)=>sum+Number(x.close),0)/count;
-  return Number.isFinite(avg)?avg:null;
-}
-
 function normalizeDaily(symbol, raw, source) {
   if (!raw) return null;
   let rows;
@@ -289,6 +282,7 @@ function normalizeDaily(symbol, raw, source) {
   return {
     symbol,status:"ok",cacheSchema:"sma-v1",date:latest.date,price:latest.close,
     historyCount:rows.length,
+    smaStatus:Number.isFinite(Number(averageClose(rows,200)))?"complete":"partial",
     sma20:averageClose(rows,20),
     sma50:averageClose(rows,50),
     sma200:averageClose(rows,200),
@@ -458,7 +452,7 @@ async function putCachedMarketSymbol(symbol,result){
 }
 
 function cacheKey(symbol) {
-  return new Request("https://cache.swing-signal-backend.local/v1.24/daily/" + encodeURIComponent(symbol));
+  return new Request("https://cache.swing-signal-backend.local/v1.25/daily/" + encodeURIComponent(symbol));
 }
 
 async function getCachedSymbol(symbol, requireCompleteSma = false) {
