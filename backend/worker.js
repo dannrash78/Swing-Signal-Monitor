@@ -7,6 +7,11 @@ const cors = {
 const CACHE_TTL_SECONDS = 6 * 60 * 60;
 const MAX_SYMBOLS = 10;
 const PROVIDERS = ["alphavantage", "twelvedata", "finnhub"];
+const DEFAULT_SECRET_NAMES = {
+  alphavantage: "ALPHA_VANTAGE_KEY",
+  twelvedata: "TWELVE_DATA_API_KEY",
+  finnhub: "FINNHUB_API_KEY"
+};
 
 export default {
   async fetch(request, env, ctx) {
