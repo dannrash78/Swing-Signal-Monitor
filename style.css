@@ -1268,3 +1268,18 @@ main{padding-bottom:40px}
 @media(max-width:700px){
   .toolbar-actions{flex-wrap:wrap;justify-content:flex-start}
 }
+
+/* v1.22.0 — Action and SMA card */
+.action-analysis{
+  border:1px solid #e5e7eb;
+}
+.action-entry{background:#ecfdf3;border-color:#bbf7d0}
+.action-exit{background:#eff6ff;border-color:#bfdbfe}
+.action-hold{background:#f0fdf4;border-color:#bbf7d0}
+.action-risk{background:#fff7ed;border-color:#fed7aa}
+.action-watch{background:#fffbeb;border-color:#fde68a}
+.action-wait{background:#f8fafc;border-color:#e5e7eb}
+.action-info{background:#eff6ff;border-color:#bfdbfe}
+.technical-analysis{
+  background:#f8fafc;
+}
