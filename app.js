@@ -464,11 +464,66 @@ function hasPosition(symbol){
 function sellPosition(symbol){
   const entries=positionEntries(symbol);
   if(!entries.length) return;
-  const message = "Продай цялата позиция в " + symbol + "?\n\nЩе бъдат затворени " + entries.length + " въведени входа.";
-  if(!confirm(message)) return;
-  delete state.positions[symbol];
+
+  const totalQuantity = entries.reduce((sum,e)=>sum+Number(e.quantity||0),0);
+  const raw = prompt(
+    "Колко акции от " + symbol + " продаваш?\\n\\nИмаш общо: " + totalQuantity + " акции.",
+    String(totalQuantity)
+  );
+
+  if(raw === null) return;
+
+  const quantity = Number(String(raw).replace(",", "."));
+  if(!Number.isFinite(quantity) || quantity <= 0){
+    alert("Въведи валидно количество акции.");
+    return;
+  }
+  if(quantity > totalQuantity){
+    alert("Не можеш да продадеш " + quantity + " акции. Имаш само " + totalQuantity + ".");
+    return;
+  }
+
+  const remainingQuantity = totalQuantity - quantity;
+  const confirmMessage =
+    "Потвърди продажбата на " + quantity + " акции от " + symbol + "?\\n\\n" +
+    "Общо преди продажбата: " + totalQuantity + " акции.\\n" +
+    "Ще останат: " + remainingQuantity + " акции.";
+
+  if(!confirm(confirmMessage)) return;
+
+  let toSell = quantity;
+  const updatedEntries = [];
+
+  for(const entry of entries){
+    const entryQuantity = Number(entry.quantity||0);
+    if(toSell <= 0){
+      updatedEntries.push(entry);
+      continue;
+    }
+
+    const soldFromEntry = Math.min(entryQuantity, toSell);
+    const leftFromEntry = entryQuantity - soldFromEntry;
+    toSell -= soldFromEntry;
+
+    if(leftFromEntry > 0){
+      updatedEntries.push({...entry, quantity:leftFromEntry});
+    }
+  }
+
+  if(remainingQuantity <= 0){
+    delete state.positions[symbol];
+  }else{
+    state.positions[symbol] = updatedEntries;
+  }
+
   save();
-  logActivity("settings","Position sold / cleared",{symbol,entries});
+  logActivity("settings","Position partially/fully sold",{
+    symbol,
+    soldQuantity:quantity,
+    remainingQuantity,
+    entriesBefore:entries,
+    entriesAfter:remainingQuantity > 0 ? updatedEntries : []
+  });
   renderCards();
 }
 function setSelected(symbol, checked){
