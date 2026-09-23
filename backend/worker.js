@@ -409,13 +409,6 @@ async function fetchFinnhubMarket(symbol,key,usage){
   return result?{result}:{permanentError:true,message:"Finnhub did not return enough daily history for market context."};
 }
 
-function averageClose(rows,count){
-  if(!Array.isArray(rows)||rows.length<count) return null;
-  const part=rows.slice(-count);
-  const avg=part.reduce((sum,x)=>sum+Number(x.close),0)/count;
-  return Number.isFinite(avg)?avg:null;
-}
-
 function normalizeMarketDaily(symbol,raw,source){
   if(!raw) return null;
   let rows;
