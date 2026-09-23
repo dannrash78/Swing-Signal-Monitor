@@ -1230,6 +1230,32 @@ async function showBackendDiagnostic(cards, backend, scanError){
   }
 }
 
+function riskAnalysis(x,target,levels){
+  const risk=state.risk||{};
+  const capital=Number(risk.portfolioCapital)||0;
+  const riskPct=Number(risk.riskPerTradePct)||1;
+  const stopPct=Number(risk.stopLossPct)||7;
+  const entries=positionEntries(x.symbol);
+  const owned=entries.length>0;
+  const avg=owned?weightedAverageEntry(entries):null;
+  const buy=additionalBuyState(x,levels);
+  let entry=null,type="none";
+  if(owned){entry=avg;type="position";}
+  else if(buy.level!==null&&Number.isFinite(Number(x.high60))){entry=Number(x.high60)*(1-buy.level/100);type="setup";}
+  if(!Number.isFinite(entry)||entry<=0)return {available:false,reason:"Няма позиция или активно drawdown ниво за изчисление."};
+  const stop=entry*(1-stopPct/100);
+  const riskPerShare=entry-stop;
+  const targetPrice=entry*(1+target/100);
+  const rewardPerShare=targetPrice-entry;
+  const rr=riskPerShare>0?rewardPerShare/riskPerShare:null;
+  const maxRisk=capital>0?capital*riskPct/100:null;
+  const size=maxRisk!==null&&riskPerShare>0?Math.floor((maxRisk/riskPerShare)*10000)/10000:null;
+  const positionValue=size!==null?size*entry:null;
+  const totalQty=owned?entries.reduce((sum,e)=>sum+Number(e.quantity||0),0):0;
+  const currentRiskToStop=owned?Math.max(0,(Number(x.price)-stop)*totalQty):null;
+  const budgetUse=owned&&maxRisk&&maxRisk>0?currentRiskToStop/maxRisk*100:null;
+  return {available:true,type,entry,stop,riskPerShare,targetPrice,rewardPerShare,rr,maxRisk,size,positionValue,totalQty,currentRiskToStop,budgetUse,stopPct,riskPct,capital};
+}
 function stockTrend(x){
   const price=Number(x?.price),s20=Number(x?.sma20),s50=Number(x?.sma50),s200=Number(x?.sma200);
   if(!Number.isFinite(price))return {kind:"unknown",label:"UNKNOWN",reason:"Няма текуща цена."};
