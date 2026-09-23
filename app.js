@@ -53,7 +53,8 @@ let state = JSON.parse(localStorage.getItem("swingState") || "null") || {
   sortOrder: "alpha",
   viewMode: "cards",
   fundamentals: {},
-  marketRegime: null
+  marketRegime: null,
+  risk: { portfolioCapital: 0, riskPerTradePct: 1, stopLossPct: 7 }
 };
 
 state.symbols = Array.isArray(state.symbols) ? state.symbols : DEFAULTS.symbols.slice();
@@ -71,6 +72,10 @@ state.sortOrder = ["alpha","signal","priceDesc","priceAsc"].includes(state.sortO
 state.viewMode = state.viewMode === "table" ? "table" : "cards";
 state.fundamentals = state.fundamentals && typeof state.fundamentals === "object" ? state.fundamentals : {};
 state.marketRegime = state.marketRegime && typeof state.marketRegime === "object" ? state.marketRegime : null;
+state.risk = state.risk && typeof state.risk === "object" ? state.risk : {};
+state.risk.portfolioCapital = Number.isFinite(Number(state.risk.portfolioCapital)) ? Math.max(0,Number(state.risk.portfolioCapital)) : 0;
+state.risk.riskPerTradePct = Number.isFinite(Number(state.risk.riskPerTradePct)) ? Math.min(10,Math.max(0.1,Number(state.risk.riskPerTradePct))) : 1;
+state.risk.stopLossPct = Number.isFinite(Number(state.risk.stopLossPct)) ? Math.min(50,Math.max(0.5,Number(state.risk.stopLossPct))) : 7;
 state.providers = state.providers || {};
 state.groupSettings = state.groupSettings && typeof state.groupSettings === "object" ? state.groupSettings : {};
 const legacySort = ["alpha","signal","priceDesc","priceAsc"].includes(state.sortOrder) ? state.sortOrder : "alpha";
@@ -613,6 +618,7 @@ function normalizeLoadedState(raw){
     providers:raw.providers && typeof raw.providers==="object" ? raw.providers : {},
     fundamentals:raw.fundamentals && typeof raw.fundamentals==="object" ? raw.fundamentals : {},
     marketRegime:raw.marketRegime && typeof raw.marketRegime==="object" ? raw.marketRegime : null,
+    risk:raw.risk && typeof raw.risk==="object" ? raw.risk : {},
     secretNames:raw.secretNames && typeof raw.secretNames==="object" ? raw.secretNames : {}
   };
   if(!next.symbols.length) next.symbols=DEFAULTS.symbols.slice();
@@ -634,6 +640,7 @@ function normalizeLoadedState(raw){
   const legacyView=next.viewMode==="table"?"table":"cards";
   next.groupSettings.owned={sortOrder:["alpha","signal","priceDesc","priceAsc"].includes(next.groupSettings?.owned?.sortOrder)?next.groupSettings.owned.sortOrder:legacySort,viewMode:next.groupSettings?.owned?.viewMode==="table"?"table":legacyView};
   next.groupSettings.other={sortOrder:["alpha","signal","priceDesc","priceAsc"].includes(next.groupSettings?.other?.sortOrder)?next.groupSettings.other.sortOrder:legacySort,viewMode:next.groupSettings?.other?.viewMode==="table"?"table":legacyView};
+  next.risk={portfolioCapital:Number.isFinite(Number(next.risk?.portfolioCapital))?Math.max(0,Number(next.risk.portfolioCapital)):0,riskPerTradePct:Number.isFinite(Number(next.risk?.riskPerTradePct))?Math.min(10,Math.max(0.1,Number(next.risk.riskPerTradePct))):1,stopLossPct:Number.isFinite(Number(next.risk?.stopLossPct))?Math.min(50,Math.max(0.5,Number(next.risk.stopLossPct))):7};
   if(!next.levels.length)next.levels=DEFAULTS.levels.slice();
   Object.keys(DEFAULTS.providers).forEach(p=>{
     next.providers[p]={...DEFAULTS.providers[p],...(next.providers[p]||{})};
