@@ -1345,7 +1345,7 @@ function card(x,target,levels){
     '<div class="analysis-block action-analysis action-'+escapeHtml(action.kind)+'"><div class="analysis-label">Действие</div><b>'+escapeHtml(action.label)+'</b><div class="analysis-text">'+escapeHtml(action.reason)+'</div></div>'+
     (owned?'<div class="analysis-block position-analysis"><div class="analysis-label">Позиция</div><b>'+positionSignal+'</b><div class="analysis-text">'+escapeHtml(positionReason)+'</div></div>':'')+
     '<div class="analysis-block buy-analysis"><div class="analysis-label">Допокупка</div><b>'+buySignal+'</b><div class="analysis-text">'+escapeHtml(buyReason)+'</div></div>'+
-    '+riskAnalysisHtml(risk)+'
+    riskAnalysisHtml(risk)+
     '<div class="analysis-block technical-analysis"><div class="analysis-label">Технически тренд</div><b>'+escapeHtml(trend.label)+'</b><div class="analysis-text">'+escapeHtml(trend.reason)+'</div></div>'+
     '<div class="metrics">'+
       '<div class="metric">SMA20<b>'+(Number.isFinite(Number(x.sma20))?"$"+num(x.sma20):"—")+'</b></div>'+
