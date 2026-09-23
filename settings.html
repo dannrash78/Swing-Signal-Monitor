@@ -42,6 +42,20 @@
   </section>
 
   <section class="settings-card">
+    <div class="settings-row">
+      <div><h2>Риск</h2><p>Параметри за образователен Risk Analysis модел.</p></div>
+      <div class="settings-inline risk-inline">
+        <label>Портфейл ($) <input id="portfolioCapital" type="number" min="0" step="100"></label>
+        <label>Риск / сделка (%) <input id="riskPerTradePct" type="number" min="0.1" max="10" step="0.1"></label>
+        <label>Stop (%) <input id="stopLossPct" type="number" min="0.5" max="50" step="0.5"></label>
+        <button id="saveRisk" type="button">Запази</button>
+      </div>
+    </div>
+    <span id="riskMessage" class="settings-message" hidden></span>
+    <p class="settings-note">Портфейлът е нужен за изчисляване на максимален риск и ориентировъчен размер на позицията. Stop v1 е фиксиран процент под входа; по-късно може да добавим ATR-based stop.</p>
+  </section>
+
+  <section class="settings-card">
     <div class="settings-card-head">
       <div>
         <h2>Data Sources</h2>
