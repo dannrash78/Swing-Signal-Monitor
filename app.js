@@ -577,15 +577,30 @@ $("clearLog").onclick = () => {
 };
 
 async function exportLocalData(){
+  // Settings.html saves strategy/risk/providers directly to localStorage.
+  // The Watchlist tab may have an older in-memory state, so merge the latest
+  // persisted settings into the current state without replacing positions/results.
+  const backupState=JSON.parse(JSON.stringify(state));
+  try{
+    const persisted=JSON.parse(localStorage.getItem("swingState") || "null");
+    if(persisted && typeof persisted==="object"){
+      ["target","levels","providers","risk","secretNames"].forEach(key=>{
+        if(Object.prototype.hasOwnProperty.call(persisted,key)){
+          backupState[key]=JSON.parse(JSON.stringify(persisted[key]));
+        }
+      });
+    }
+  }catch{}
+
   const payload={
     format:"Swing Signal Monitor local backup",
-    version:"1.20.0",
+    version:"1.25.5",
     exportedAt:new Date().toISOString(),
     backendUrl:localStorage.getItem("swingBackend") || "",
-    state:JSON.parse(JSON.stringify(state)),
-    targetPct:String(state.target),
-    levels:state.levels.join(","),
-    secretNames:providerSecretNames()
+    state:backupState,
+    targetPct:String(backupState.target),
+    levels:Array.isArray(backupState.levels)?backupState.levels.join(","):"",
+    secretNames:providerSecretNamesFromState(backupState)
   };
   const json=JSON.stringify(payload,null,2);
   const fileName="swing-signal-monitor-backup-" + localUsageDate() + ".json";
@@ -617,6 +632,15 @@ async function exportLocalData(){
     if(err?.name==="AbortError") return;
     throw err;
   }
+}
+
+function providerSecretNamesFromState(source){
+  const names={};
+  Object.keys(DEFAULTS.providers).forEach(p=>{
+    const value=String(source?.secretNames?.[p] || source?.providers?.[p]?.secretName || DEFAULTS.providers[p].secretName).trim().toUpperCase();
+    names[p]=/^[A-Z][A-Z0-9_]{0,62}$/.test(value) ? value : DEFAULTS.providers[p].secretName;
+  });
+  return names;
 }
 
 function normalizeLoadedState(raw){
