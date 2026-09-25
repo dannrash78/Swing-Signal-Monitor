@@ -577,15 +577,28 @@ $("clearLog").onclick = () => {
 };
 
 async function exportLocalData(){
+  // Read the latest persisted state, not only the in-memory state from this tab.
+  // This matters when Settings were changed in settings.html and the Watchlist tab
+  // was already open before those changes were saved.
+  let currentState=state;
+  try{
+    const persisted=JSON.parse(localStorage.getItem("swingState") || "null");
+    if(persisted && typeof persisted==="object") currentState=persisted;
+  }catch{}
+  const secretNames={};
+  Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
+    const value=String(currentState.secretNames?.[p] || currentState.providers?.[p]?.secretName || DEFAULTS.providers[p].secretName).trim().toUpperCase();
+    secretNames[p]=/^[A-Z][A-Z0-9_]{0,62}$/.test(value) ? value : DEFAULTS.providers[p].secretName;
+  });
   const payload={
     format:"Swing Signal Monitor local backup",
-    version:"1.20.0",
+    version:"1.25.3",
     exportedAt:new Date().toISOString(),
     backendUrl:localStorage.getItem("swingBackend") || "",
-    state:JSON.parse(JSON.stringify(state)),
-    targetPct:String(state.target),
-    levels:state.levels.join(","),
-    secretNames:providerSecretNames()
+    state:JSON.parse(JSON.stringify(currentState)),
+    targetPct:String(currentState.target ?? DEFAULTS.target),
+    levels:Array.isArray(currentState.levels)?currentState.levels.join(","):DEFAULTS.levels.join(","),
+    secretNames
   };
   const json=JSON.stringify(payload,null,2);
   const fileName="swing-signal-monitor-backup-" + localUsageDate() + ".json";
@@ -692,9 +705,10 @@ async function importLocalData(file){
   });
   save();
   renderProviderSettings();
+  renderMarketRegime();
   renderCards();
   renderActivityLog();
-  logActivity("settings","Local data imported",{sourceVersion:payload.version || "unknown"});
+  logActivity("settings","Local data imported",{sourceVersion:payload.version || "unknown",marketRegimeRestored:!!state.marketRegime});
 }
 
 async function chooseAndImportLocalData(){
@@ -1398,58 +1412,3 @@ function positionEntries(symbol){
     if(typeof v==="number"&&Number.isFinite(v)&&v>0)return {price:v,quantity:1};
     const price=Number(v?.price),quantity=Number(v?.quantity);
     return Number.isFinite(price)&&price>0&&Number.isFinite(quantity)&&quantity>0?{price,quantity}:null;
-  }).filter(Boolean);
-}
-function weightedAverageEntry(entries){
-  if(!entries?.length)return null;
-  const totalQty=entries.reduce((sum,e)=>sum+Number(e.quantity||0),0);
-  if(!totalQty)return null;
-  return entries.reduce((sum,e)=>sum+Number(e.price)*Number(e.quantity),0)/totalQty;
-}
-function statusCard(x){
-  const selected = state.selectedSymbols.includes(x.symbol);
-  const owned = hasPosition(x.symbol);
-  const labels = {
-    rate_limited: "⚠️ API LIMIT",
-    no_data: "⚠️ NO DATA",
-    invalid_symbol: "❌ INVALID SYMBOL",
-    insufficient_history: "⚠️ INSUFFICIENT HISTORY",
-    error: "⚠️ DATA ERROR",
-    provider_unavailable: "⚠️ PROVIDER UNAVAILABLE"
-  };
-  const div=document.createElement("article");
-  div.className="card error" + (selected ? " selected" : "") + (owned ? " owned-card" : "");
-  div.dataset.symbolCard = x.symbol;
-  div.innerHTML =
-    '<div class="top">' +
-      '<label class="selection"><input type="checkbox" data-select="' + escapeHtml(x.symbol) + '"' + (selected ? " checked" : "") + '> Update</label>' +
-      '' +
-    '</div>' +
-    '<div class="symbol">' + escapeHtml(x.symbol) + ' <span class="company-name">' + escapeHtml(companyName(x.symbol)) + '</span></div>' +
-    '<div class="signal">' + (labels[x.status] || "⚠️ DATA ERROR") + '</div>' +
-    '<div class="reason">' + escapeHtml(x.error || "Няма данни.") + '</div>' +
-    (Array.isArray(x.attempts) ? '<div class="provider-attempts">' + x.attempts.map(a => '<div><b>' + escapeHtml(providerName(a.provider)) + ':</b> ' + escapeHtml(a.status) + (a.message ? ' — ' + escapeHtml(a.message) : '') + '</div>').join('') + '</div>' : '') +
-    '<div class="data-source">Data: ' + escapeHtml(providerName(x.source)) + '</div>' +
-    (owned ? '<button type="button" class="sell-btn" data-sell="' + escapeHtml(x.symbol) + '">Продай позицията</button>' :
-      '<button type="button" class="hide-btn" data-hide="' + escapeHtml(x.symbol) + '">Скрий</button>');
-  div.querySelector("[data-select]").onchange = e => setSelected(x.symbol,e.target.checked);
-  const sell=div.querySelector("[data-sell]");
-  const hide=div.querySelector("[data-hide]");
-  if(sell) sell.onclick=()=>sellPosition(x.symbol);
-  if(hide) hide.onclick=()=>hideStock(x.symbol);
-  return div;
-}
-
-
-const num=x=>Number(x).toFixed(2);
-function companyName(symbol){ return DEFAULTS.companyNames[symbol] || symbol; }
-function providerName(source){
-  return ({alphavantage:"Alpha Vantage",twelvedata:"Twelve Data",finnhub:"Finnhub",cache:"Cache"})[source] || source || "—";
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-}
-
-renderMarketRegime();
-renderCards();
