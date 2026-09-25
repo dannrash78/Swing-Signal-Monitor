@@ -586,13 +586,13 @@ async function exportLocalData(){
     if(persisted && typeof persisted==="object") currentState=persisted;
   }catch{}
   const secretNames={};
-  Object.keys(DEFAULT_PROVIDERS).forEach(p=>{
+  Object.keys(DEFAULTS.providers).forEach(p=>{
     const value=String(currentState.secretNames?.[p] || currentState.providers?.[p]?.secretName || DEFAULTS.providers[p].secretName).trim().toUpperCase();
     secretNames[p]=/^[A-Z][A-Z0-9_]{0,62}$/.test(value) ? value : DEFAULTS.providers[p].secretName;
   });
   const payload={
     format:"Swing Signal Monitor local backup",
-    version:"1.25.3",
+    version:"1.25.4",
     exportedAt:new Date().toISOString(),
     backendUrl:localStorage.getItem("swingBackend") || "",
     state:JSON.parse(JSON.stringify(currentState)),
@@ -706,6 +706,7 @@ async function importLocalData(file){
   save();
   renderProviderSettings();
   renderMarketRegime();
+  renderWatchlistControls?.();
   renderCards();
   renderActivityLog();
   logActivity("settings","Local data imported",{sourceVersion:payload.version || "unknown",marketRegimeRestored:!!state.marketRegime});
