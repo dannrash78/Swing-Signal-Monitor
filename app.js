@@ -706,7 +706,6 @@ async function importLocalData(file){
   save();
   renderProviderSettings();
   renderMarketRegime();
-  renderWatchlistControls?.();
   renderCards();
   renderActivityLog();
   logActivity("settings","Local data imported",{sourceVersion:payload.version || "unknown",marketRegimeRestored:!!state.marketRegime});
