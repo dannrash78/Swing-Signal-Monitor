@@ -1322,3 +1322,31 @@ main{padding-bottom:40px}
   .risk-inline input{width:100%}
   .risk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+
+/* v1.25.6 — Settings backup controls and readable Cloudflare configuration */
+.settings-minimal .backup-card{border:1px solid #dbe3ee;background:#fff}
+.settings-minimal .backup-folder-row{margin-top:16px}
+.settings-minimal .backup-folder-row>label{display:block;margin-bottom:7px;font-size:13px;font-weight:700;color:#374151}
+.settings-minimal .backup-folder-controls{display:flex;gap:10px;align-items:center}
+.settings-minimal #backupFolderPath{flex:1;min-width:0;width:100%;height:40px;padding:10px 12px;border:1px solid #d4dae3;border-radius:8px;background:#f8fafc;color:#374151;font:inherit}
+.settings-minimal .backup-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.settings-minimal .backup-actions .settings-message{flex-basis:100%;margin-top:2px}
+.settings-minimal .backup-actions .settings-message.error{color:#b91c1c}
+.settings-minimal .cloudflare-item code,
+.settings-minimal .cloudflare-config code,
+.settings-minimal .settings-note code{
+  font-family:inherit;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:normal;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+.settings-minimal .cloudflare-item{font-size:12px}
+.settings-minimal .cloudflare-config code{display:inline-block;padding:3px 7px;border-radius:5px;background:#eef2f7;color:#374151}
+@media(max-width:760px){
+  .settings-minimal .backup-folder-controls{align-items:stretch;flex-direction:column}
+  .settings-minimal .backup-folder-controls button{width:100%}
+  .settings-minimal .backup-actions button{width:100%}
+}
