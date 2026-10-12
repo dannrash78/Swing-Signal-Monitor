@@ -18,6 +18,28 @@
 </header>
 
 <main class="settings-minimal">
+  <section class="settings-card backup-card">
+    <div class="settings-card-head">
+      <div>
+        <h2>Резервно копие на настройките и данните</h2>
+        <p>Запазва настройките, източниците и приоритетите, Watchlist, последните пазарни данни, позициите и останалите данни на приложението в JSON файл в избрана папка.</p>
+      </div>
+    </div>
+    <div class="backup-folder-row">
+      <label for="backupFolderPath">Папка за съхранение</label>
+      <div class="backup-folder-controls">
+        <input id="backupFolderPath" type="text" readonly placeholder="Не е избрана папка">
+        <button id="chooseBackupFolder" type="button" class="secondary">Избери папка</button>
+      </div>
+    </div>
+    <p class="settings-note">Браузърът не позволява на страницата да прочете пълния локален път. Ще се показва името на избраната папка; достъпът се запазва, когато браузърът го позволява.</p>
+    <div class="backup-actions">
+      <button id="saveFolderBackup" type="button">Запази текущите данни в папката</button>
+      <button id="loadFolderBackup" type="button" class="secondary">Зареди последното копие от папката</button>
+      <span id="backupMessage" class="settings-message" role="status" aria-live="polite" hidden></span>
+    </div>
+    <input id="backupFallbackFile" type="file" accept="application/json,.json" hidden>
+  </section>
   <section class="settings-card">
     <div class="settings-row">
       <div><h2>Backend</h2><p>Адресът на Cloudflare Worker.</p></div>
