@@ -343,18 +343,33 @@ async function loadLatestBackupFromDirectory(){
       backupMessage("Няма разрешение за четене на избраната папка.",true);
       return;
     }
-    let latest=null,latestTime=-1;
+    const backups=[];
     for await (const entry of handle.values()){
       if(entry.kind!=="file" || !entry.name.startsWith(BACKUP_PREFIX) || !entry.name.toLowerCase().endsWith(".json"))continue;
       const file=await entry.getFile();
-      const time=file.lastModified||0;
-      if(time>latestTime){latestTime=time;latest=file;}
+      backups.push({file,name:entry.name,time:file.lastModified||0});
     }
-    if(!latest){
+    backups.sort((a,b)=>b.time-a.time);
+    if(!backups.length){
       backupMessage("В папката няма резервно копие на Swing Signal Monitor.",true);
       return;
     }
-    await applyCompleteBackup(latest);
+    let selected=backups[0];
+    if(backups.length>1){
+      const options=backups.map((item,index)=>{
+        const date=item.time ? new Date(item.time).toLocaleString() : "неизвестна дата";
+        return (index+1)+". "+item.name+" — "+date;
+      }).join("\\n");
+      const answer=window.prompt("Намерени са "+backups.length+" резервни копия. Въведи номера на копието, което искаш да възстановиш:\\n\\n"+options+"\\n\\nНай-новото е № 1.", "1");
+      if(answer===null)return;
+      const choice=Number(answer.trim());
+      if(!Number.isInteger(choice)||choice<1||choice>backups.length){
+        backupMessage("Невалиден избор. Не е възстановено резервно копие.",true);
+        return;
+      }
+      selected=backups[choice-1];
+    }
+    await applyCompleteBackup(selected.file);
   }catch(err){
     if(err?.name!=="AbortError")backupMessage(err.message||"Неуспешно зареждане на резервното копие.",true);
   }
