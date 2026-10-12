@@ -182,8 +182,7 @@ function showBackupDirectory(handle){
 async function chooseBackupDirectory(){
   try{
     if(!window.showDirectoryPicker){
-      backupMessage("Този браузър не поддържа избор на папка. Използвай обичайното изтегляне и зареждане на JSON файл.",true);
-      $("backupFallbackFile").click();
+      backupMessage("Този браузър не поддържа избор на папка. При запис ще се изтегли JSON файл, а зареждането става чрез избор на файл.",true);
       return;
     }
     const handle=await window.showDirectoryPicker({id:"swing-signal-monitor-backups",mode:"readwrite"});
@@ -262,6 +261,19 @@ async function saveBackupToDirectory(){
     if(!handle){
       try{handle=await readBackupDirectory();}catch{}
       if(handle)showBackupDirectory(handle);
+    }
+    if(!handle && !window.showDirectoryPicker){
+      const fileName=backupFileName();
+      const blob=new Blob([JSON.stringify(makeCompleteBackup(),null,2)],{type:"application/json;charset=utf-8"});
+      const link=document.createElement("a");
+      link.href=URL.createObjectURL(blob);
+      link.download=fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+      backupMessage("Браузърът не поддържа избор на папка — резервното копие е изтеглено като "+fileName+".");
+      return;
     }
     if(!handle){
       await chooseBackupDirectory();
