@@ -471,7 +471,7 @@ async function requestGoogleDriveToken(){
 
 async function driveApi(path,options={}){
   const token=await requestGoogleDriveToken();
-  const response=await fetch("https://www.googleapis.com/drive/v3/"+path,{
+  const response=await fetch(path.startsWith("https://") ? path : "https://www.googleapis.com/drive/v3/"+path,{
     ...options,
     headers:{Authorization:"Bearer "+token,...(options.headers||{})}
   });
