@@ -1350,3 +1350,22 @@ main{padding-bottom:40px}
   .settings-minimal .backup-folder-controls button{width:100%}
   .settings-minimal .backup-actions button{width:100%}
 }
+
+
+/* v1.26.0 — Google Drive backups */
+.settings-minimal .drive-backup-card{border-color:#cbdcf2}
+.settings-minimal #googleDriveClientId,
+.settings-minimal #googleDriveBackupList{
+  box-sizing:border-box;min-width:0;width:100%;height:40px;padding:9px 11px;
+  border:1px solid #d4dae3;border-radius:8px;background:#fff;color:#1f2937;
+  font:inherit;font-size:13px;
+}
+.settings-minimal #googleDriveBackupList{flex:1}
+.settings-minimal #googleDriveStatus{font-size:12px}
+.settings-minimal #googleDriveMessage{display:block;margin-top:10px}
+.settings-minimal #googleDriveMessage.error{color:#b91c1c}
+.settings-minimal .drive-backup-card .settings-note{max-width:100%;line-height:1.5}
+@media(max-width:760px){
+  .settings-minimal .drive-backup-card .backup-folder-controls{align-items:stretch;flex-direction:column}
+  .settings-minimal .drive-backup-card #googleDriveBackupList{width:100%}
+}
