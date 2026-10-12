@@ -40,6 +40,39 @@
     </div>
     <input id="backupFallbackFile" type="file" accept="application/json,.json" hidden>
   </section>
+  <section class="settings-card backup-card drive-backup-card">
+    <div class="settings-card-head">
+      <div>
+        <h2>Google Drive — облачно резервно копие</h2>
+        <p>Създава отделна частна папка и архивите на приложението в твоя Google Drive. Достъпът е ограничен до файловете, които Swing Signal Monitor създава или изрично му предоставяш.</p>
+      </div>
+    </div>
+    <div class="backup-folder-row">
+      <label for="googleDriveClientId">Google OAuth Client ID</label>
+      <input id="googleDriveClientId" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="xxxxxxxxxxxx-xxxxxxxx.apps.googleusercontent.com">
+      <p class="settings-note">Това е публичен Client ID, не Client Secret. Не поставяй тук API ключове или пароли.</p>
+    </div>
+    <div class="backup-actions">
+      <button id="connectGoogleDrive" type="button">Свържи Google Drive</button>
+      <button id="disconnectGoogleDrive" type="button" class="secondary">Отмени достъпа</button>
+      <span id="googleDriveStatus" class="settings-message" role="status" aria-live="polite">Не е свързан.</span>
+    </div>
+    <div class="backup-actions">
+      <button id="saveGoogleDriveBackup" type="button">Запази нов архив в Google Drive</button>
+      <button id="refreshGoogleDriveBackups" type="button" class="secondary">Покажи архивите</button>
+    </div>
+    <div class="backup-folder-row">
+      <label for="googleDriveBackupList">Архив за възстановяване</label>
+      <div class="backup-folder-controls">
+        <select id="googleDriveBackupList" aria-label="Избери Google Drive архив">
+          <option value="">Първо натисни „Покажи архивите“</option>
+        </select>
+        <button id="restoreGoogleDriveBackup" type="button" class="secondary">Възстанови избрания</button>
+      </div>
+    </div>
+    <p class="settings-note">OAuth разрешението е само за файловете, свързани с това приложение (drive.file). Токенът за достъп не се записва в localStorage; след презареждане може да се наложи повторно свързване. Google Cloud Console трябва да има активиран Drive API и OAuth Web Client с origin на GitHub Pages.</p>
+    <span id="googleDriveMessage" class="settings-message" role="status" aria-live="polite" hidden></span>
+  </section>
   <section class="settings-card">
     <div class="settings-row">
       <div><h2>Backend</h2><p>Адресът на Cloudflare Worker.</p></div>
@@ -150,6 +183,6 @@
   </section>
 </main>
 
-<script src="settings.js?v=1.25.7"></script>
+<script src="settings.js?v=1.26.0"></script>
 </body>
 </html>
