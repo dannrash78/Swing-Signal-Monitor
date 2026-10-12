@@ -395,3 +395,251 @@ $("backupFallbackFile").onchange=async event=>{
 };
 loadSettings();
 loadBackupDirectoryOnStart();
+
+
+/* Google Drive backup: least-privilege OAuth scope; access token stays in memory only. */
+const DRIVE_BACKUP_FOLDER_NAME = "Swing Signal Monitor Backups";
+const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+let googleDriveAccessToken = "";
+let googleDriveTokenExpiresAt = 0;
+let googleDriveTokenClient = null;
+let googleDriveLibraryPromise = null;
+let googleDriveFolderId = localStorage.getItem("swingDriveFolderId") || "";
+
+function driveMessage(text,isError=false){
+  const el=$("googleDriveMessage");
+  if(!el)return;
+  el.hidden=false;
+  el.textContent=(isError?"⚠ ":"✓ ")+text;
+  el.classList.toggle("error",isError);
+}
+function driveStatus(text){const el=$("googleDriveStatus");if(el)el.textContent=text;}
+
+function loadGoogleIdentityLibrary(){
+  if(window.google?.accounts?.oauth2)return Promise.resolve();
+  if(googleDriveLibraryPromise)return googleDriveLibraryPromise;
+  googleDriveLibraryPromise=new Promise((resolve,reject)=>{
+    const script=document.createElement("script");
+    script.src="https://accounts.google.com/gsi/client";
+    script.async=true;
+    script.defer=true;
+    script.onload=()=>window.google?.accounts?.oauth2?resolve():reject(new Error("Google Identity Services не се зареди."));
+    script.onerror=()=>reject(new Error("Неуспешно зареждане на Google Identity Services."));
+    document.head.appendChild(script);
+  });
+  return googleDriveLibraryPromise;
+}
+
+function getGoogleDriveClientId(){
+  const input=$("googleDriveClientId");
+  const value=(input?.value||localStorage.getItem("swingDriveClientId")||"").trim();
+  if(!value || !value.endsWith(".apps.googleusercontent.com")){
+    throw new Error("Въведи валиден Google OAuth Web Client ID.");
+  }
+  localStorage.setItem("swingDriveClientId",value);
+  return value;
+}
+
+async function requestGoogleDriveToken(){
+  if(googleDriveAccessToken && Date.now() < googleDriveTokenExpiresAt-60000)return googleDriveAccessToken;
+  await loadGoogleIdentityLibrary();
+  const clientId=getGoogleDriveClientId();
+  return await new Promise((resolve,reject)=>{
+    googleDriveTokenClient=window.google.accounts.oauth2.initTokenClient({
+      client_id:clientId,
+      scope:DRIVE_FILE_SCOPE,
+      callback:response=>{
+        if(response?.error){
+          googleDriveAccessToken="";
+          googleDriveTokenExpiresAt=0;
+          reject(new Error("Google не предостави достъп: "+response.error));
+          return;
+        }
+        if(!response?.access_token){
+          reject(new Error("Не е получен access token от Google."));
+          return;
+        }
+        googleDriveAccessToken=response.access_token;
+        googleDriveTokenExpiresAt=Date.now()+(Number(response.expires_in)||3600)*1000;
+        resolve(googleDriveAccessToken);
+      },
+      error_callback:error=>reject(new Error(error?.message||"Google OAuth прозорецът не може да се отвори."))
+    });
+    googleDriveTokenClient.requestAccessToken({prompt:""});
+  });
+}
+
+async function driveApi(path,options={}){
+  const token=await requestGoogleDriveToken();
+  const response=await fetch("https://www.googleapis.com/drive/v3/"+path,{
+    ...options,
+    headers:{Authorization:"Bearer "+token,...(options.headers||{})}
+  });
+  if(response.status===401){
+    googleDriveAccessToken="";
+    googleDriveTokenExpiresAt=0;
+    throw new Error("Google достъпът е изтекъл. Натисни „Свържи Google Drive“ и опитай отново.");
+  }
+  const body=await response.text();
+  let data={};
+  try{data=body?JSON.parse(body):{};}catch{}
+  if(!response.ok)throw new Error(data.error?.message||("Google Drive API върна HTTP "+response.status+"."));
+  return data;
+}
+
+async function findOrCreateGoogleDriveFolder(){
+  if(googleDriveFolderId)return googleDriveFolderId;
+  const q="name = '"+DRIVE_BACKUP_FOLDER_NAME+"' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+  const query=new URLSearchParams({q,spaces:"drive",pageSize:"100",fields:"files(id,name,mimeType,modifiedTime)"});
+  const found=await driveApi("files?"+query.toString());
+  const folder=(found.files||[]).find(item=>item.name===DRIVE_BACKUP_FOLDER_NAME && item.mimeType==="application/vnd.google-apps.folder");
+  if(folder){
+    googleDriveFolderId=folder.id;
+    localStorage.setItem("swingDriveFolderId",googleDriveFolderId);
+    return googleDriveFolderId;
+  }
+  const created=await driveApi("files?fields=id,name",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name:DRIVE_BACKUP_FOLDER_NAME,mimeType:"application/vnd.google-apps.folder"})
+  });
+  if(!created.id)throw new Error("Google Drive не върна ID на папката.");
+  googleDriveFolderId=created.id;
+  localStorage.setItem("swingDriveFolderId",googleDriveFolderId);
+  return googleDriveFolderId;
+}
+
+async function connectGoogleDrive(){
+  try{
+    getGoogleDriveClientId();
+    await requestGoogleDriveToken();
+    const folderId=await findOrCreateGoogleDriveFolder();
+    driveStatus("Свързан с Google Drive · папка готова");
+    driveMessage("Google Drive е свързан. Папката „"+DRIVE_BACKUP_FOLDER_NAME+"“ е готова.");
+    await listGoogleDriveBackups(false);
+  }catch(err){
+    driveStatus("Не е свързан");
+    driveMessage(err.message||"Неуспешно свързване с Google Drive.",true);
+  }
+}
+
+async function disconnectGoogleDrive(){
+  const token=googleDriveAccessToken;
+  googleDriveAccessToken="";
+  googleDriveTokenExpiresAt=0;
+  googleDriveTokenClient=null;
+  localStorage.removeItem("swingDriveFolderId");
+  googleDriveFolderId="";
+  driveStatus("Не е свързан");
+  const select=$("googleDriveBackupList");
+  if(select)select.innerHTML='<option value="">Свържи Google Drive, за да видиш архивите</option>';
+  if(token && window.google?.accounts?.oauth2){
+    window.google.accounts.oauth2.revoke(token,()=>driveMessage("Локалният достъп е изчистен и Google е помолен да отмени разрешението."));
+  }else{
+    driveMessage("Локалният access token и запомнената папка са изчистени. За пълно отнемане на разрешението провери Google Account → Security → Third-party connections.");
+  }
+}
+
+async function saveGoogleDriveBackup(){
+  try{
+    if(!persistVisibleSettingsForBackup())return;
+    const folderId=await findOrCreateGoogleDriveFolder();
+    const payload=makeCompleteBackup();
+    payload.version="1.26.0";
+    payload.backupTarget="google-drive";
+    payload.driveFolder=DRIVE_BACKUP_FOLDER_NAME;
+    const fileName=backupFileName();
+    const metadata={name:fileName,mimeType:"application/json",parents:[folderId]};
+    const boundary="swing_signal_monitor_"+Math.random().toString(36).slice(2);
+    const body=new Blob([
+      "--"+boundary+"\\r\\nContent-Type: application/json; charset=UTF-8\\r\\n\\r\\n",
+      JSON.stringify(metadata),
+      "\\r\\n--"+boundary+"\\r\\nContent-Type: application/json; charset=UTF-8\\r\\n\\r\\n",
+      JSON.stringify(payload,null,2),
+      "\\r\\n--"+boundary+"--"
+    ],{type:"multipart/related; boundary="+boundary});
+    const result=await driveApi("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime",{
+      method:"POST",
+      headers:{"Content-Type":"multipart/related; boundary="+boundary},
+      body
+    });
+    if(!result.id)throw new Error("Google Drive не потвърди създаването на архива.");
+    driveStatus("Свързан с Google Drive");
+    driveMessage("Архивът „"+result.name+"“ е записан в частната папка.");
+    await listGoogleDriveBackups(false);
+  }catch(err){
+    driveMessage(err.message||"Неуспешен запис в Google Drive.",true);
+  }
+}
+
+async function listGoogleDriveBackups(showResult=true){
+  try{
+    const folderId=await findOrCreateGoogleDriveFolder();
+    const q="'"+folderId+"' in parents and trashed = false";
+    const query=new URLSearchParams({q,spaces:"drive",pageSize:"100",orderBy:"modifiedTime desc",fields:"files(id,name,mimeType,modifiedTime,size)"});
+    const data=await driveApi("files?"+query.toString());
+    const files=(data.files||[]).filter(file=>file.mimeType!=="application/vnd.google-apps.folder" && file.name?.startsWith(BACKUP_PREFIX) && file.name.toLowerCase().endsWith(".json"));
+    const select=$("googleDriveBackupList");
+    select.innerHTML="";
+    if(!files.length){
+      select.add(new Option("Няма архиви в Google Drive папката",""));
+      if(showResult)driveMessage("В папката все още няма архиви.");
+      return files;
+    }
+    files.sort((a,b)=>String(b.modifiedTime||"").localeCompare(String(a.modifiedTime||"")));
+    files.forEach(file=>{
+      const date=file.modifiedTime?new Date(file.modifiedTime).toLocaleString():"дата неизвестна";
+      select.add(new Option(file.name+" — "+date,file.id));
+    });
+    if(showResult)driveMessage("Намерени са "+files.length+" архив(а). Избери кой да възстановиш.");
+    return files;
+  }catch(err){
+    if(showResult)driveMessage(err.message||"Неуспешно зареждане на списъка с архиви.",true);
+    else throw err;
+  }
+}
+
+async function restoreSelectedGoogleDriveBackup(){
+  try{
+    const id=$("googleDriveBackupList").value;
+    if(!id){
+      driveMessage("Първо избери архив от списъка.",true);
+      return;
+    }
+    const metadata=await driveApi("files/"+encodeURIComponent(id)+"?fields=id,name,mimeType");
+    if(metadata.mimeType!=="application/json" || !metadata.name?.startsWith(BACKUP_PREFIX)){
+      throw new Error("Избраният файл не изглежда като архив на Swing Signal Monitor.");
+    }
+    const token=await requestGoogleDriveToken();
+    const response=await fetch("https://www.googleapis.com/drive/v3/files/"+encodeURIComponent(id)+"?alt=media",{headers:{Authorization:"Bearer "+token}});
+    if(!response.ok){
+      const text=await response.text();
+      throw new Error("Неуспешно изтегляне на архива (HTTP "+response.status+"). "+text.slice(0,200));
+    }
+    const blob=await response.blob();
+    const file=new File([blob],metadata.name,{type:"application/json"});
+    await applyCompleteBackup(file);
+  }catch(err){
+    driveMessage(err.message||"Неуспешно възстановяване на архива.",true);
+  }
+}
+
+function loadGoogleDriveSettings(){
+  const clientId=localStorage.getItem("swingDriveClientId")||"";
+  const input=$("googleDriveClientId");
+  if(input)input.value=clientId;
+  driveStatus("Не е свързан — достъпът се предоставя при поискване");
+}
+
+
+$("connectGoogleDrive").onclick=connectGoogleDrive;
+$("disconnectGoogleDrive").onclick=disconnectGoogleDrive;
+$("saveGoogleDriveBackup").onclick=saveGoogleDriveBackup;
+$("refreshGoogleDriveBackups").onclick=()=>listGoogleDriveBackups(true);
+$("restoreGoogleDriveBackup").onclick=restoreSelectedGoogleDriveBackup;
+$("googleDriveClientId").addEventListener("change",()=>{
+  const value=$("googleDriveClientId").value.trim();
+  if(value)localStorage.setItem("swingDriveClientId",value);
+  else localStorage.removeItem("swingDriveClientId");
+});
+loadGoogleDriveSettings();
