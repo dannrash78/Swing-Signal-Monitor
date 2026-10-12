@@ -550,19 +550,18 @@ async function saveGoogleDriveBackup(){
     payload.driveFolder=DRIVE_BACKUP_FOLDER_NAME;
     const fileName=backupFileName();
     const metadata={name:fileName,mimeType:"application/json",parents:[folderId]};
-    const boundary="swing_signal_monitor_"+Math.random().toString(36).slice(2);
-    const body=new Blob([
-      "--"+boundary+"\\r\\nContent-Type: application/json; charset=UTF-8\\r\\n\\r\\n",
-      JSON.stringify(metadata),
-      "\\r\\n--"+boundary+"\\r\\nContent-Type: application/json; charset=UTF-8\\r\\n\\r\\n",
-      JSON.stringify(payload,null,2),
-      "\\r\\n--"+boundary+"--"
-    ],{type:"multipart/related; boundary="+boundary});
-    const result=await driveApi("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,modifiedTime",{
+    const created=await driveApi("files?fields=id,name",{
       method:"POST",
-      headers:{"Content-Type":"multipart/related; boundary="+boundary},
-      body
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(metadata)
     });
+    if(!created.id)throw new Error("Google Drive не създаде файла за архива.");
+    const uploadResult=await driveApi("https://www.googleapis.com/upload/drive/v3/files/"+encodeURIComponent(created.id)+"?uploadType=media",{
+      method:"PATCH",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload,null,2)
+    });
+    const result={...created,...uploadResult,name:created.name};
     if(!result.id)throw new Error("Google Drive не потвърди създаването на архива.");
     driveStatus("Свързан с Google Drive");
     driveMessage("Архивът „"+result.name+"“ е записан в частната папка.");
